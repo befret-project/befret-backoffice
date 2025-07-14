@@ -1,0 +1,69 @@
+name: 🚀 Deploy to Development
+
+on:
+  push:
+    branches: [ develop ]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+  FIREBASE_PROJECT: 'befret-development'
+
+jobs:
+  deploy-dev:
+    name: 🚀 Deploy to Development Environment
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🔍 Run tests
+        run: |
+          npm run lint
+          npm run type-check
+
+      - name: 🏗️ Build for development
+        run: npm run export:dev
+        env:
+          NODE_ENV: development
+
+      - name: 🔥 Setup Firebase CLI
+        uses: w9jds/firebase-action@master
+        with:
+          args: --version
+
+      - name: 🚀 Deploy to Firebase Hosting
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only hosting --project ${{ env.FIREBASE_PROJECT }}
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: 🚀 Deploy Functions
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only functions --project ${{ env.FIREBASE_PROJECT }}
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: 📝 Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🚀 **Development deployment completed!**\n\n📱 Preview: https://befret-development-e3cb5.web.app/\n\n⏱️ Deployed at: ' + new Date().toISOString()
+            })

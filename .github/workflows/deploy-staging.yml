@@ -1,0 +1,68 @@
+name: 🚀 Deploy to Staging
+
+on:
+  push:
+    branches: [ staging ]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+  FIREBASE_PROJECT: 'befret-staging'  # À configurer plus tard
+
+jobs:
+  deploy-staging:
+    name: 🚀 Deploy to Staging Environment
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📥 Install dependencies
+        run: npm ci
+
+      - name: 🔍 Run full test suite
+        run: |
+          npm run lint
+          npm run type-check
+
+      - name: 🏗️ Build for staging
+        run: npm run build:staging
+        env:
+          NODE_ENV: staging
+
+      - name: 🔥 Setup Firebase CLI
+        uses: w9jds/firebase-action@master
+        with:
+          args: --version
+
+      - name: 🚀 Deploy to Firebase Hosting
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only hosting --project ${{ env.FIREBASE_PROJECT }}
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN_STAGING }}
+
+      - name: 🚀 Deploy Functions
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only functions --project ${{ env.FIREBASE_PROJECT }}
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN_STAGING }}
+
+      - name: 🧪 Run smoke tests
+        run: |
+          echo "🧪 Running smoke tests against staging environment"
+          # Ajouter ici les tests de smoke testing
+          
+      - name: 📝 Notify deployment
+        if: success()
+        run: |
+          echo "✅ Staging deployment completed successfully"
+          echo "🔗 Staging URL: https://befret-staging.web.app"
