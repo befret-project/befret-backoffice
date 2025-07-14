@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Import optimisations tablette */
+@import '../styles/tablet-optimized.css';
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    /* BeFret Green Primary - rgb(26, 113, 37) = hsl(127, 63%, 27%) */
+    --primary: 127 63% 27%;
+    --primary-foreground: 120 40% 98%;
+    /* Light green secondary - based on rgba(31, 152, 31, 0.15) */
+    --secondary: 120 40% 96%;
+    --secondary-foreground: 127 84% 4.9%;
+    --muted: 120 40% 96%;
+    --muted-foreground: 125 16.3% 46.9%;
+    --accent: 120 40% 96%;
+    --accent-foreground: 127 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 120 40% 98%;
+    --border: 124 31.8% 91.4%;
+    --input: 124 31.8% 91.4%;
+    /* Ring color matching primary green */
+    --ring: 127 63% 27%;
+    --radius: 0.5rem;
+    
+    /* BeFret Brand Colors */
+    --befret-green-dark: 127 63% 27%;     /* rgb(26, 113, 37) */
+    --befret-green-primary: 120 60% 40%;   /* rgb(41, 163, 41) */
+    --befret-green-light: 120 50% 85%;    /* Light green backgrounds */
+    --befret-green-accent: 120 100% 25%;  /* Dark accent */
+  }
+
+  .dark {
+    --background: 127 84% 4.9%;
+    --foreground: 120 40% 98%;
+    --card: 127 84% 4.9%;
+    --card-foreground: 120 40% 98%;
+    --popover: 127 84% 4.9%;
+    --popover-foreground: 120 40% 98%;
+    /* Lighter green for dark mode primary */
+    --primary: 120 70% 65%;
+    --primary-foreground: 127 84% 4.9%;
+    --secondary: 125 32.6% 17.5%;
+    --secondary-foreground: 120 40% 98%;
+    --muted: 125 32.6% 17.5%;
+    --muted-foreground: 125 20.2% 65.1%;
+    --accent: 125 32.6% 17.5%;
+    --accent-foreground: 120 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 120 40% 98%;
+    --border: 125 32.6% 17.5%;
+    --input: 125 32.6% 17.5%;
+    --ring: 120 76.3% 94.1%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

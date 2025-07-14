@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "befret-development",
+    "development": "befret-development"
+  }
+}

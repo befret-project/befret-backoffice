@@ -1,0 +1,41 @@
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  output: 'export',
+  trailingSlash: true,
+  distDir: 'out',
+  images: {
+    unoptimized: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  // Exclude API routes from static export
+  exportPathMap: async function () {
+    const pathMap: { [key: string]: { page: string } } = {};
+    
+    // Only include pages that don't require server-side functionality
+    pathMap['/'] = { page: '/' };
+    pathMap['/dashboard'] = { page: '/dashboard' };
+    pathMap['/logistic'] = { page: '/logistic' };
+    pathMap['/logistic/colis/expedition'] = { page: '/logistic/colis/expedition' };
+    pathMap['/logistic/reporting'] = { page: '/logistic/reporting' };
+    pathMap['/finance'] = { page: '/finance' };
+    pathMap['/finance/invoices'] = { page: '/finance/invoices' };
+    pathMap['/finance/payments'] = { page: '/finance/payments' };
+    pathMap['/commercial'] = { page: '/commercial' };
+    pathMap['/commercial/crm'] = { page: '/commercial/crm' };
+    pathMap['/commercial/pipeline'] = { page: '/commercial/pipeline' };
+    pathMap['/support'] = { page: '/support' };
+    pathMap['/support/tickets'] = { page: '/support/tickets' };
+    pathMap['/support/knowledge-base'] = { page: '/support/knowledge-base' };
+    pathMap['/support/chat'] = { page: '/support/chat' };
+    
+    return pathMap;
+  },
+};
+
+export default nextConfig;

@@ -1,0 +1,125 @@
+# Firebase Database Investigation Report
+
+## Summary
+The issue where the befret-backoffice was finding 0 documents in the 'parcel' collection has been **RESOLVED**. The root cause was a **configuration mismatch** between the backoffice and the actual Firebase project containing the data.
+
+## Problem Description
+- The backoffice was successfully connecting to Firebase but finding 0 documents in the 'parcel' collection
+- The befret_new Angular application was working correctly and presumably had access to parcel data
+- This created confusion about whether the database actually contained data
+
+## Root Cause Analysis
+
+### Issue 1: Environment Configuration Mismatch
+The backoffice `.env.local` file was configured with **demo/mock Firebase settings**:
+```env
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=demo-project
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=demo.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_API_KEY=demo-api-key
+```
+
+### Issue 2: Different Firebase Projects
+While the befret_new Angular app was correctly connecting to the **real befret-development Firebase project**:
+```env
+projectId: 'befret-development'
+apiKey: 'AIzaSyDgU_qyND7LXCY-hESIzUvu8jIqFflc_BE'
+authDomain: 'befret-development.firebaseapp.com'
+```
+
+## Investigation Process
+
+### 1. Firebase Project Verification
+- Verified that the befret-development Firebase project exists and is accessible
+- Confirmed there are **3 databases** in the project: (default), beacceptstore, beprodstore
+- Tested Firebase CLI access and permissions
+
+### 2. Database Content Verification
+Created and ran scripts to directly query the befret-development Firebase project, which revealed:
+- **422 total parcels** in the 'parcel' collection
+- Status distribution:
+  - draft: 308
+  - delivered: 25 
+  - received: 30
+  - pending: 38
+  - arrived: 4
+  - sent: 8
+  - invalid: 8
+  - unknown: 1
+
+### 3. Configuration Analysis
+Compared Firebase configurations between:
+- befret_new (Angular): ✅ Correctly configured for befret-development
+- befret-backoffice: ❌ Using demo/mock configuration
+
+## Resolution
+
+### Fixed Configuration
+Updated `/home/yannick/projets/befret-backoffice/.env.local` with the correct befret-development project settings:
+
+```env
+# Firebase Configuration (Real befret-development project)
+NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyDgU_qyND7LXCY-hESIzUvu8jIqFflc_BE
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=befret-development.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=befret-development
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=befret-development.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=384879116689
+NEXT_PUBLIC_FIREBASE_APP_ID=1:384879116689:web:d0e89a006a3111eec2da30
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=G-KYB5JZJNMG
+
+# Firebase Admin Development  
+FIREBASE_PROJECT_ID=befret-development
+FIREBASE_CLIENT_EMAIL=befret-backoffice-admin-dev@befret-development.iam.gserviceaccount.com
+# ... (service account credentials)
+```
+
+### Verification
+Post-fix testing confirmed:
+- ✅ Backoffice can now connect to befret-development project
+- ✅ Successfully queries the 'parcel' collection
+- ✅ Finds multiple documents (422 parcels total)
+- ✅ Can access real parcel data with proper tracking IDs, statuses, etc.
+
+## Key Findings
+
+### Database Content Analysis
+The befret-development database contains **real user data**, not just test data:
+- Real user names and tracking IDs
+- Multiple parcel statuses (draft, delivered, received, etc.)  
+- Created dates spanning from 2024 to 2025
+- Various parcel types (Paquet, Courrier)
+
+### Authentication & Permissions
+- Firebase security rules require authentication: `isAuthenticated()` and user ownership
+- Service account has proper permissions for admin access
+- No permission issues once connected to correct project
+
+### Multiple Environments
+The project has multiple environment configurations:
+- `.env.local` (local development) - was using demo settings
+- `.env.development` (development) - has correct settings
+- `.env.production` (production) - has correct settings
+- `.env.staging` (staging) - has correct settings
+
+## Recommendations
+
+### 1. Environment Configuration Best Practices
+- Always verify `.env.local` matches the intended environment
+- Consider using environment-specific naming (e.g., `.env.local.real` vs `.env.local.demo`)
+- Add validation in application startup to verify correct project connection
+
+### 2. Data Verification Scripts
+- Keep database verification scripts for troubleshooting
+- Create automated tests to verify Firebase connection configuration
+- Add environment validation in CI/CD pipeline
+
+### 3. Documentation
+- Document which Firebase project each environment should use
+- Maintain clear configuration examples for each environment
+- Add troubleshooting guide for Firebase connection issues
+
+## Status
+✅ **RESOLVED** - The backoffice now correctly connects to the befret-development Firebase project and can access all 422 parcels in the database.
+
+---
+*Investigation completed on June 30, 2025*
+*Report generated by Claude Code*

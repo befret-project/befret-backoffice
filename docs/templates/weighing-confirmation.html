@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pesée Confirmée - BeFret</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #4CAF50, #45a049); color: white; padding: 30px 20px; text-align: center; }
+        .content { padding: 30px 20px; }
+        .weight-info { background: #e8f5e8; border-left: 4px solid #4CAF50; padding: 20px; margin: 20px 0; border-radius: 4px; }
+        .photo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 20px 0; }
+        .photo-item { border: 2px solid #ddd; border-radius: 8px; overflow: hidden; }
+        .photo-item img { width: 100%; height: auto; display: block; }
+        .status-ok { color: #4CAF50; font-weight: bold; }
+        .btn { display: inline-block; padding: 12px 30px; background: #4CAF50; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .footer { background: #f9f9f9; padding: 20px; text-align: center; font-size: 14px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>✅ Pesée Confirmée</h1>
+            <p>Votre {{pType}} {{trackingCode}} a été reçu et pesé</p>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <p>Bonjour <strong>{{fullname}}</strong>,</p>
+            
+            <p>Excellente nouvelle ! Votre {{pType}} est arrivé à notre entrepôt de Tubize et a été pesé avec succès.</p>
+
+            <!-- Weight Information -->
+            <div class="weight-info">
+                <h3>📊 Informations de pesée</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Poids déclaré :</td>
+                        <td style="padding: 8px 0;">{{declaredWeight}} kg</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Poids réel :</td>
+                        <td style="padding: 8px 0;">{{actualWeight}} kg</td>
+                    </tr>
+                    {{#if weightDifference}}
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Différence :</td>
+                        <td style="padding: 8px 0;">{{weightDifference}} kg ({{weightDifferencePercentage}}%)</td>
+                    </tr>
+                    {{/if}}
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: bold;">Statut :</td>
+                        <td style="padding: 8px 0;">
+                            {{#if isWeightOk}}
+                                <span class="status-ok">✅ Poids conforme - Aucun supplément requis</span>
+                            {{else}}
+                                <span style="color: #ff9800;">⚠️ Écart de poids détecté</span>
+                            {{/if}}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Photos -->
+            {{#if weighingPhotos}}
+            <h3>📸 Photos de pesée</h3>
+            <p>Voici les photos prises lors de la pesée de votre colis :</p>
+            <div class="photo-grid">
+                {{#each weighingPhotos}}
+                <div class="photo-item">
+                    <img src="{{this}}" alt="Photo de pesée" style="max-width: 100%; height: auto;" />
+                </div>
+                {{/each}}
+            </div>
+            {{/if}}
+
+            <!-- Next Steps -->
+            <h3>🚚 Prochaines étapes</h3>
+            <p>Votre {{pType}} est maintenant en préparation pour expédition vers <strong>{{city}}</strong>. Nous vous tiendrons informé de chaque étape.</p>
+
+            <!-- Tracking Button -->
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{trackingURL}}" class="btn">Suivre mon colis</a>
+            </div>
+
+            <!-- Additional Info -->
+            <div style="background: #f0f0f0; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 14px;"><strong>Pesée effectuée le :</strong> {{weighingTimestamp}}</p>
+                <p style="margin: 5px 0 0 0; font-size: 14px;"><strong>Référence :</strong> {{trackingCode}}</p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Merci de faire confiance à <strong>BeFret</strong></p>
+            <p>📱 Support : +32 XXX XXX XXX | 📧 info@befret.be</p>
+            <p><a href="{{trackingURL}}" style="color: #4CAF50;">Suivre votre colis en temps réel</a></p>
+        </div>
+    </div>
+</body>
+</html>

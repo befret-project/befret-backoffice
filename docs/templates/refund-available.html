@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remboursement Disponible - BeFret</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #2196F3, #1976D2); color: white; padding: 30px 20px; text-align: center; }
+        .content { padding: 30px 20px; }
+        .weight-comparison { background: #e3f2fd; border-left: 4px solid #2196F3; padding: 20px; margin: 20px 0; border-radius: 4px; }
+        .refund-amount { background: #e8f5e8; border: 2px solid #4CAF50; padding: 20px; margin: 20px 0; border-radius: 8px; text-align: center; }
+        .photo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 20px 0; }
+        .photo-item { border: 2px solid #2196F3; border-radius: 8px; overflow: hidden; }
+        .photo-item img { width: 100%; height: auto; display: block; }
+        .options { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
+        .option-btn { display: block; padding: 15px; background: #2196F3; color: white; text-decoration: none; border-radius: 5px; text-align: center; font-weight: bold; }
+        .option-voucher { background: #4CAF50; }
+        .footer { background: #f9f9f9; padding: 20px; text-align: center; font-size: 14px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>💚 Bonne Nouvelle !</h1>
+            <p>Remboursement disponible pour {{trackingCode}}</p>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <p>Bonjour <strong>{{fullname}}</strong>,</p>
+            
+            <p>Lors de la pesée de votre {{pType}} à notre entrepôt, nous avons constaté que le poids réel est <strong>inférieur</strong> à ce qui avait été déclaré. Cela signifie que vous avez payé plus que nécessaire !</p>
+
+            <!-- Weight Comparison -->
+            <div class="weight-comparison">
+                <h3>⚖️ Comparaison des poids</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 10px 0; font-weight: bold;">Poids déclaré :</td>
+                        <td style="padding: 10px 0;">{{declaredWeight}} kg</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; font-weight: bold;">Poids réel mesuré :</td>
+                        <td style="padding: 10px 0; color: #4CAF50; font-weight: bold;">{{actualWeight}} kg</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; font-weight: bold;">Différence :</td>
+                        <td style="padding: 10px 0; color: #4CAF50; font-weight: bold;">{{weightDifference}} kg ({{weightDifferencePercentage}}%)</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Photos -->
+            {{#if weighingPhotos}}
+            <h3>📸 Preuve photographique</h3>
+            <p>Voici les photos de la pesée effectuée à notre entrepôt :</p>
+            <div class="photo-grid">
+                {{#each weighingPhotos}}
+                <div class="photo-item">
+                    <img src="{{this}}" alt="Photo de pesée avec balance" style="max-width: 100%; height: auto;" />
+                </div>
+                {{/each}}
+            </div>
+            {{/if}}
+
+            <!-- Refund Amount -->
+            <div class="refund-amount">
+                <h3 style="margin: 0 0 10px 0; color: #4CAF50;">💰 Remboursement disponible</h3>
+                <div style="font-size: 24px; font-weight: bold; color: #4CAF50;">{{refundAmount}} €</div>
+                <p style="margin: 10px 0 0 0; font-size: 14px;">Calculé selon notre grille tarifaire</p>
+            </div>
+
+            <!-- Options -->
+            <h3>🎯 Choisissez votre option</h3>
+            <p>Nous vous proposons deux options pour récupérer cette somme :</p>
+
+            <div class="options">
+                <a href="{{refundLink}}" class="option-btn">
+                    💳 Remboursement<br>
+                    <small>Sur votre compte bancaire</small>
+                </a>
+                <a href="{{voucherLink}}" class="option-btn option-voucher">
+                    🎁 Bon d'achat +10%<br>
+                    <small>{{bonusAmount}} € de crédit</small>
+                </a>
+            </div>
+
+            <!-- Automatic Processing -->
+            <div style="background: #f0f0f0; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <h4 style="margin: 0 0 10px 0;">⚡ Traitement automatique</h4>
+                <p style="margin: 0; font-size: 14px;">Si vous ne choisissez pas d'option dans les 7 jours, nous procéderons automatiquement au remboursement sur votre moyen de paiement original.</p>
+            </div>
+
+            <!-- Shipment Continues -->
+            <div style="background: #e8f5e8; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <h4 style="margin: 0 0 10px 0; color: #4CAF50;">🚚 Expédition maintenue</h4>
+                <p style="margin: 0; font-size: 14px;">Votre {{pType}} continue son parcours vers {{city}} normalement. Cette différence de poids n'affecte pas l'expédition.</p>
+            </div>
+
+            <!-- Tracking -->
+            <p>Suivez votre colis sur : <a href="{{trackingURL}}" style="color: #2196F3;">{{trackingURL}}</a></p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Merci de faire confiance à <strong>BeFret</strong></p>
+            <p>📱 Support : +32 XXX XXX XXX | 📧 info@befret.be</p>
+            <p>Notre politique : Toujours juste, toujours transparent</p>
+        </div>
+    </div>
+</body>
+</html>
