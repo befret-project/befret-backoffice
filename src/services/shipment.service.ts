@@ -157,31 +157,28 @@ export class ShipmentService {
   }
 
   /**
-   * Récupérer les shipments pour la réception (phase DPD_COLLECTION ou en transit)
-   * Pour Sprint 1: Afficher les colis arrivant à l'entrepôt
+   * Récupérer les shipments réceptionnés à l'entrepôt Befret
+   * Affiche les colis avec statut 'received_at_warehouse'
    */
   static async getShipmentsForReception(limitCount: number = 20): Promise<UnifiedShipment[]> {
     try {
-      console.log('📦 [ShipmentService] Fetching shipments for reception...');
+      console.log('📦 [ShipmentService] Fetching shipments received at warehouse...');
 
       const shipmentsRef = collection(db, 'shipments');
 
-      // Récupérer les shipments en phase de collecte DPD (en route vers entrepôt)
+      // Récupérer les shipments avec statut 'received_at_warehouse'
       const q = query(
         shipmentsRef,
-        where('currentPhase', 'in', [
-          ShipmentPhase.DPD_COLLECTION,
-          ShipmentPhase.COLLECTED_EUROPE
-        ]),
-        orderBy('metadata.createdAt', 'desc'),
+        where('status.current', '==', 'received_at_warehouse'),
+        orderBy('timestamps.updatedAt', 'desc'),
         limit(limitCount)
       );
 
       const querySnapshot = await getDocs(q);
-      console.log(`📦 [ShipmentService] Found ${querySnapshot.size} shipments for reception`);
+      console.log(`📦 [ShipmentService] Found ${querySnapshot.size} shipments received at warehouse`);
 
       if (querySnapshot.empty) {
-        console.log('⚠️ [ShipmentService] No shipments found for reception');
+        console.log('⚠️ [ShipmentService] No shipments with status received_at_warehouse');
         return [];
       }
 
@@ -189,14 +186,15 @@ export class ShipmentService {
 
       querySnapshot.forEach((doc) => {
         const shipment = this.convertFirestoreToShipment(doc.id, doc.data());
+        console.log(`  - ${shipment.trackingNumber} (status: ${typeof shipment.status === 'string' ? shipment.status : (shipment.status as any)?.current})`);
         shipments.push(shipment);
       });
 
-      console.log(`✅ [ShipmentService] Returning ${shipments.length} shipments`);
+      console.log(`✅ [ShipmentService] Returning ${shipments.length} received shipments`);
       return shipments;
 
     } catch (error) {
-      console.error('❌ [ShipmentService] Error fetching shipments for reception:', error);
+      console.error('❌ [ShipmentService] Error fetching received shipments:', error);
       return [];
     }
   }

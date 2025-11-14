@@ -1,5 +1,12 @@
 // Authentification Firebase côté client pour l'environnement déployé
-import { signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged, User } from 'firebase/auth';
+import {
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  User
+} from 'firebase/auth';
 import { auth } from './firebase-client';
 import { BackofficeRole, ROLE_PERMISSIONS } from '@/types/auth';
 
@@ -55,6 +62,46 @@ export const signIn = async (email: string, password: string): Promise<BefretUse
   } catch (error: any) {
     console.error('Authentication error:', error);
     throw new Error('Email ou mot de passe incorrect');
+  }
+};
+
+// Google Sign In
+export const signInWithGoogle = async (): Promise<BefretUser> => {
+  try {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({
+      prompt: 'select_account'
+    });
+
+    const userCredential = await signInWithPopup(auth, provider);
+    const firebaseUser = userCredential.user;
+    const idToken = await firebaseUser.getIdToken();
+
+    // Déterminer le rôle via Firebase custom claims
+    const role = await getUserRole(firebaseUser);
+    const permissions = ROLE_PERMISSIONS[role];
+
+    const befretUser: BefretUser = {
+      id: firebaseUser.uid,
+      email: firebaseUser.email || '',
+      name: firebaseUser.displayName || 'Utilisateur Google',
+      role,
+      permissions,
+      accessToken: idToken
+    };
+
+    // Stocker dans localStorage pour persistence
+    localStorage.setItem('befret_user', JSON.stringify(befretUser));
+
+    return befretUser;
+  } catch (error: any) {
+    console.error('Google authentication error:', error);
+    if (error.code === 'auth/popup-closed-by-user') {
+      throw new Error('Connexion annulée');
+    } else if (error.code === 'auth/popup-blocked') {
+      throw new Error('Popup bloquée par le navigateur');
+    }
+    throw new Error('Erreur lors de la connexion avec Google');
   }
 };
 

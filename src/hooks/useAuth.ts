@@ -8,6 +8,7 @@ interface AuthContextType {
   user: BefretUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
 }
@@ -60,6 +61,20 @@ export const useAuthProvider = () => {
     setLoading(false);
   };
 
+  const signInWithGoogle = async () => {
+    setLoading(true);
+
+    try {
+      // Use Firebase Google Authentication
+      const befretUser = await firebaseAuth.signInWithGoogle();
+      setUser(befretUser);
+    } catch (error: any) {
+      setLoading(false);
+      throw error; // Error messages are already in French from firebase-auth.ts
+    }
+    setLoading(false);
+  };
+
   const signOut = async () => {
     try {
       await firebaseAuth.signOut();
@@ -78,6 +93,7 @@ export const useAuthProvider = () => {
     user,
     loading,
     signIn,
+    signInWithGoogle,
     signOut,
     hasPermission,
   };

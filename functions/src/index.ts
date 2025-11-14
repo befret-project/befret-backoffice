@@ -3,19 +3,12 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import cors from "cors";
 
-// Initialize Firebase Admin with service account
-try {
-  const serviceAccount = require("../serviceAccountKey.json");
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-  logger.info("Firebase Admin initialized with service account");
-} catch (error) {
-  logger.error("Error loading service account:", error);
-  // Fallback to default initialization
-  admin.initializeApp();
-  logger.info("Firebase Admin initialized with default credentials");
-}
+// Initialize Firebase Admin with default credentials
+// When deployed to Firebase, this automatically uses the project's credentials
+// For local development with emulator, set GOOGLE_APPLICATION_CREDENTIALS env var
+admin.initializeApp();
+logger.info("Firebase Admin initialized with default credentials");
+
 const db = admin.firestore();
 
 // Configure CORS
@@ -34,8 +27,9 @@ import { authHandler } from "./auth";
 // Main API function that routes to different handlers
 export const api = onRequest({
   cors: true,
-  region: 'europe-west1',
-  secrets: ["WEB_API_KEY"]
+  region: 'europe-west1'
+  // Note: secrets can be added per environment if needed
+  // secrets: ["WEB_API_KEY"]
 }, async (request, response) => {
   try {
     return new Promise<void>((resolve, reject) => {

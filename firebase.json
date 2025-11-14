@@ -22,7 +22,7 @@
     }
   ],
   "hosting": {
-    "site": "befret-development-e3cb5",
+    "target": "backoffice",
     "public": "out",
     "ignore": [
       "firebase.json",

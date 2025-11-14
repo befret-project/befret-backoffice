@@ -142,9 +142,16 @@ export function RecentReceptions() {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-gray-900 font-mono">
-                      {shipment.trackingNumber}
-                    </p>
+                    <div className="flex flex-col">
+                      <p className="text-sm font-medium text-gray-900 font-mono">
+                        {shipment.trackingNumber}
+                      </p>
+                      {(shipment as any).standardData?.dpdTrackingNumber && (
+                        <p className="text-xs text-gray-500 font-mono">
+                          DPD: {(shipment as any).standardData.dpdTrackingNumber}
+                        </p>
+                      )}
+                    </div>
                     <div className="flex space-x-1">
                       <Badge className={getPhaseColor(shipment.currentPhase)}>
                         {phaseLabels[shipment.currentPhase]}
