@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { usePathname } from 'next/navigation';
-import Link from 'next/link';
+import { SmartLink } from '@/components/smart-link';
 import { cn } from '@/lib/utils';
 // import { hasPermission } from '@/lib/auth-config';
 import {
@@ -28,7 +28,9 @@ import {
   Shield,
   Database,
   Menu,
-  X
+  X,
+  LogOut,
+  Grid
 } from 'lucide-react';
 
 interface NavItem {
@@ -40,20 +42,42 @@ interface NavItem {
 }
 
 const navigation: NavItem[] = [
+  // Page d'accueil - Vue d'ensemble de tous les modules
   {
-    title: 'Dashboard',
+    title: 'Accueil',
+    href: '/modules',
+    icon: Grid,
+  },
+
+  // Dashboard global - Statistiques générales
+  {
+    title: 'Dashboard Global',
     href: '/dashboard',
     icon: LayoutDashboard,
     permission: 'dashboard:view'
   },
+
+  // Module Logistique avec ses fonctions
   {
     title: 'Logistique',
     icon: Package,
     permission: 'logistic:view',
     children: [
       {
-        title: 'Réception',
-        href: '/logistic/colis/reception',
+        title: 'Dashboard Logistique',
+        href: '/logistic',
+        icon: LayoutDashboard,
+        permission: 'logistic:view'
+      },
+      {
+        title: 'Recherche de Colis',
+        href: '/logistic/colis/search',
+        icon: Package,
+        permission: 'logistic:manage_parcels'
+      },
+      {
+        title: 'Réception Départ',
+        href: '/logistic/reception-depart/recherche',
         icon: Package,
         permission: 'logistic:manage_parcels'
       },
@@ -64,8 +88,20 @@ const navigation: NavItem[] = [
         permission: 'logistic:manage_parcels'
       },
       {
-        title: 'Expédition',
+        title: 'Tri des Colis',
+        href: '/logistic/sorting',
+        icon: Package,
+        permission: 'logistic:manage_parcels'
+      },
+      {
+        title: 'Créer un Groupage',
         href: '/logistic/colis/expedition',
+        icon: Package,
+        permission: 'logistic:manage_parcels'
+      },
+      {
+        title: 'Liste des Groupages',
+        href: '/logistic/groupages',
         icon: Truck,
         permission: 'logistic:manage_parcels'
       },
@@ -83,11 +119,19 @@ const navigation: NavItem[] = [
       }
     ]
   },
+
+  // Module Support
   {
-    title: 'Support',
+    title: 'Support Client',
     icon: Headphones,
     permission: 'support:view',
     children: [
+      {
+        title: 'Dashboard Support',
+        href: '/support',
+        icon: LayoutDashboard,
+        permission: 'support:view'
+      },
       {
         title: 'Plaintes',
         href: '/support/plaintes',
@@ -108,11 +152,19 @@ const navigation: NavItem[] = [
       }
     ]
   },
+
+  // Module Finance
   {
     title: 'Finance',
     icon: DollarSign,
     permission: 'finance:view',
     children: [
+      {
+        title: 'Dashboard Finance',
+        href: '/finance',
+        icon: LayoutDashboard,
+        permission: 'finance:view'
+      },
       {
         title: 'Facturation',
         href: '/finance/invoices',
@@ -133,11 +185,19 @@ const navigation: NavItem[] = [
       }
     ]
   },
+
+  // Module Commercial
   {
     title: 'Commercial',
     icon: Users,
     permission: 'commercial:view',
     children: [
+      {
+        title: 'Dashboard Commercial',
+        href: '/commercial',
+        icon: LayoutDashboard,
+        permission: 'commercial:view'
+      },
       {
         title: 'CRM',
         href: '/commercial/crm',
@@ -152,11 +212,19 @@ const navigation: NavItem[] = [
       }
     ]
   },
+
+  // Administration & Paramètres
   {
-    title: 'Paramètres',
+    title: 'Administration',
     icon: Settings,
     permission: 'settings:view',
     children: [
+      {
+        title: 'Dashboard Admin',
+        href: '/administration',
+        icon: LayoutDashboard,
+        permission: 'settings:view'
+      },
       {
         title: 'Utilisateurs',
         href: '/settings/users',
@@ -164,19 +232,19 @@ const navigation: NavItem[] = [
         permission: 'settings:manage_users'
       },
       {
-        title: 'Rôles',
+        title: 'Rôles & Permissions',
         href: '/settings/roles',
         icon: Shield,
         permission: 'settings:manage_roles'
       },
       {
-        title: 'Audit',
+        title: 'Journal d\'audit',
         href: '/settings/audit',
         icon: FileText,
         permission: 'settings:view_audit'
       },
       {
-        title: 'Système',
+        title: 'Configuration système',
         href: '/settings/system',
         icon: Database,
         permission: 'settings:manage_system'
@@ -186,12 +254,33 @@ const navigation: NavItem[] = [
 ];
 
 export function Sidebar() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
+  // Auto-expand menus containing the current page
+  useEffect(() => {
+    navigation.forEach(item => {
+      if (item.children) {
+        const hasActiveChild = item.children.some(child => child.href === pathname);
+        if (hasActiveChild && !expandedItems.includes(item.title)) {
+          setExpandedItems(prev => [...prev, item.title]);
+        }
+      }
+    });
+  }, [pathname, expandedItems]);
+
   // const userPermissions = session?.user?.permissions || [];
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   const toggleExpanded = (title: string) => {
     setExpandedItems(prev =>
@@ -222,31 +311,45 @@ export function Sidebar() {
     const isActive = item.href ? pathname === item.href : false;
 
     if (hasChildren) {
+      const hasActiveChild = item.children?.some(child => child.href === pathname);
       return (
         <div key={item.title}>
           <button
             onClick={() => toggleExpanded(item.title)}
             className={cn(
-              'w-full flex items-center justify-between p-4 text-left rounded-xl transition-all duration-200',
+              'w-full flex items-center justify-between p-3 text-left rounded-xl transition-all duration-200',
               'hover:bg-slate-100 active:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1',
-              'touch-manipulation select-none',
+              'touch-manipulation select-none group',
+              hasActiveChild && 'bg-green-50/50 border border-green-200',
               level > 0 && 'pl-8'
             )}
           >
             <div className="flex items-center space-x-3">
-              <Icon className="h-5 w-5 text-gray-500" />
-              <span className="font-medium text-gray-700 dark:text-gray-200">
+              <Icon className={cn(
+                'h-5 w-5 transition-colors',
+                hasActiveChild ? 'text-green-600' : 'text-gray-500 group-hover:text-gray-700'
+              )} />
+              <span className={cn(
+                'font-medium transition-colors',
+                hasActiveChild ? 'text-green-700' : 'text-gray-700 group-hover:text-gray-900'
+              )}>
                 {item.title}
               </span>
             </div>
             {isExpanded ? (
-              <ChevronDown className="h-4 w-4 text-gray-500" />
+              <ChevronDown className={cn(
+                'h-4 w-4 transition-all duration-200',
+                hasActiveChild ? 'text-green-600' : 'text-gray-400'
+              )} />
             ) : (
-              <ChevronRight className="h-4 w-4 text-gray-500" />
+              <ChevronRight className={cn(
+                'h-4 w-4 transition-all duration-200',
+                hasActiveChild ? 'text-green-600' : 'text-gray-400'
+              )} />
             )}
           </button>
           {isExpanded && (
-            <div className="ml-4 space-y-1">
+            <div className="ml-2 mt-1 space-y-1 border-l-2 border-slate-200 pl-2">
               {item.children?.map(child => renderNavItem(child, level + 1))}
             </div>
           )}
@@ -257,29 +360,32 @@ export function Sidebar() {
     if (!item.href) return null;
 
     return (
-      <Link
+      <SmartLink
         key={item.title}
         href={item.href}
         onClick={() => setIsMobileOpen(false)}
         className={cn(
-          'flex items-center space-x-3 p-4 rounded-xl transition-all duration-200',
+          'flex items-center space-x-3 p-3 rounded-xl transition-all duration-200 group relative',
           'hover:bg-slate-100 active:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1',
           'touch-manipulation select-none',
-          isActive && 'bg-green-50 text-green-700 border border-green-200 shadow-sm',
-          level > 0 && 'pl-8'
+          isActive && 'bg-gradient-to-r from-green-50 to-green-50/30 text-green-700 border border-green-200 shadow-sm',
+          level > 0 && 'pl-6 text-sm'
         )}
       >
+        {isActive && (
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-green-600 rounded-r-full" />
+        )}
         <Icon className={cn(
-          'h-5 w-5',
-          isActive ? 'text-green-600' : 'text-gray-500'
+          'h-5 w-5 transition-colors flex-shrink-0',
+          isActive ? 'text-green-600' : 'text-gray-500 group-hover:text-gray-700'
         )} />
         <span className={cn(
-          'font-medium',
-          isActive ? 'text-green-700 dark:text-green-400' : 'text-gray-700 dark:text-gray-200'
+          'font-medium transition-colors',
+          isActive ? 'text-green-700 font-semibold' : 'text-gray-700 group-hover:text-gray-900'
         )}>
           {item.title}
         </span>
-      </Link>
+      </SmartLink>
     );
   };
 
@@ -303,14 +409,18 @@ export function Sidebar() {
         <div className="flex flex-col h-full">
           {/* Header */}
           {/* Logo Header */}
-          <div className="flex items-center h-16 px-4 bg-gradient-to-r from-green-600 to-green-700">
+          <div className="flex items-center h-16 px-4 bg-[#1f981f]">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                <Package className="h-6 w-6 text-white" />
+              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center p-1.5 shadow-md">
+                <img
+                  src="/befret_logo.png"
+                  alt="Befret Logo"
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-white">Befret</h1>
-                <p className="text-xs text-green-100">Backoffice</p>
+                <p className="text-xs text-white/80">Backoffice</p>
               </div>
             </div>
           </div>
@@ -319,18 +429,18 @@ export function Sidebar() {
           <div className="p-4 bg-slate-50 border-b border-slate-200">
             <div className="flex items-center space-x-3">
               <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 bg-[#1f981f] rounded-full flex items-center justify-center shadow-lg">
                   <span className="text-white text-base font-semibold">
                     {user?.name?.charAt(0) || user?.email?.charAt(0) || '?'}
                   </span>
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white"></div>
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#22A922] rounded-full border-2 border-white"></div>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-slate-900 truncate">
                   {user?.name || user?.email}
                 </p>
-                <p className="text-xs text-slate-500 bg-green-100 text-green-700 px-3 py-1 rounded-full inline-block font-medium">
+                <p className="text-xs bg-[#f8fff9] text-[#1f981f] px-3 py-1 rounded-full inline-block font-medium border border-[#1f981f]/20">
                   {user?.role?.replace('_', ' ') || 'Utilisateur'}
                 </p>
               </div>
@@ -343,7 +453,17 @@ export function Sidebar() {
           </nav>
           
           {/* Footer */}
-          <div className="p-4 border-t border-slate-200 bg-slate-50/50">
+          <div className="p-4 border-t border-slate-200 bg-slate-50/50 space-y-3">
+            {/* Logout button */}
+            <button
+              onClick={handleSignOut}
+              className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 rounded-xl transition-all duration-200 border border-red-200 hover:border-red-300 shadow-sm hover:shadow active:scale-95 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="font-medium text-sm">Déconnexion</span>
+            </button>
+
+            {/* Copyright */}
             <div className="text-center">
               <p className="text-xs text-slate-500">© 2024 Befret</p>
               <p className="text-xs text-slate-400">v1.0.0</p>

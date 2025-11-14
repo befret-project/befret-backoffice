@@ -1,6 +1,25 @@
 {
   "projects": {
     "default": "befret-development",
-    "development": "befret-development"
+    "local": "befret-development",
+    "dev": "befret-development",
+    "acc": "befret-acceptance",
+    "prod": "befret-production"
+  },
+  "targets": {
+    "befret-development": {
+      "hosting": {
+        "backoffice": [
+          "befret-development"
+        ]
+      }
+    },
+    "befret-acceptance": {
+      "hosting": {
+        "backoffice": [
+          "befret-backoffice-acceptance"
+        ]
+      }
+    }
   }
 }

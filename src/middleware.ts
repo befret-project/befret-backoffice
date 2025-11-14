@@ -13,10 +13,10 @@ export async function middleware(request: NextRequest) {
 
   // Temporarily disable authentication for build
   // TODO: Re-enable authentication after fixing Firebase admin issues
-  
-  // Redirect root to dashboard
+
+  // Redirect root to modules page
   if (isRootPage) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    return NextResponse.redirect(new URL('/modules', request.url));
   }
 
   return NextResponse.next();

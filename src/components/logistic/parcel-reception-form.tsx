@@ -8,17 +8,18 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Scan, Package, CheckCircle, AlertTriangle, Search, MapPin, Clock, Euro, Camera, Trash2, QrCode, Scale, ExternalLink } from 'lucide-react';
-import { Parcel } from '@/types/parcel';
-import ParcelService from '@/services/firebase';
+// ✅ MIGRATION: UnifiedShipment architecture
+import { UnifiedShipment, ShipmentPhase } from '@/types/unified-shipment';
+import ShipmentService from '@/services/shipment.service';
 import { QRCodeService } from '@/services/qr-code';
 import { QRScanner } from './qr-scanner';
 import { BarcodeScanner } from './barcode-scanner';
 import { useAuth } from '@/hooks/useAuth';
-import { getLogisticsStatusLabel, getLogisticsStatusColor, isStatusVisibleInInterface } from '@/utils/status-mappings';
+// ✅ MIGRATION: Status mappings plus nécessaires (utilise ShipmentPhase)
 
 export function ParcelReceptionForm() {
   const [trackingID, setTrackingID] = useState('');
-  const [parcelInfo, setParcelInfo] = useState<Parcel | null>(null);
+  const [parcelInfo, setParcelInfo] = useState<UnifiedShipment | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -39,14 +40,14 @@ export function ParcelReceptionForm() {
     try {
       console.log('Searching for parcel:', trackingID);
       
-      // Recherche dans Firestore via le service
-      const result = await ParcelService.searchByTrackingId(trackingID);
-      
-      if (result.found && result.parcel) {
-        setParcelInfo(result.parcel);
-        console.log('Parcel found:', result.parcel);
+      // ✅ MIGRATION: Recherche dans Firestore via ShipmentService
+      const result = await ShipmentService.searchByTrackingNumber(trackingID);
+
+      if (result.found && result.shipment) {
+        setParcelInfo(result.shipment);
+        console.log('✅ [Reception] Shipment found:', result.shipment);
       } else {
-        setError(result.error || 'Colis non trouvé');
+        setError(result.error || 'Expédition non trouvée');
       }
     } catch (searchError) {
       console.error('Search error:', searchError);
@@ -67,7 +68,7 @@ export function ParcelReceptionForm() {
       
       if (validationResult.valid && validationResult.parcel) {
         setParcelInfo(validationResult.parcel);
-        setTrackingID(validationResult.parcel.trackingID);
+        setTrackingID(validationResult.parcel?.trackingNumber || '');
         
         // Enregistrer automatiquement le scan d'arrivée
         if (user && validationResult.parcel.id) {
@@ -98,13 +99,13 @@ export function ParcelReceptionForm() {
       
       // Auto-search après le scan
       setLoading(true);
-      const result = await ParcelService.searchByTrackingId(barcode);
-      
-      if (result.found && result.parcel) {
-        setParcelInfo(result.parcel);
-        console.log('Parcel found:', result.parcel);
+      const result = await ShipmentService.searchByTrackingNumber(barcode);
+
+      if (result.found && result.shipment) {
+        setParcelInfo(result.shipment);
+        console.log('✅ [Reception] Shipment found via barcode:', result.shipment);
       } else {
-        setError(result.error || 'Colis non trouvé');
+        setError(result.error || 'Expédition non trouvée');
       }
       
     } catch (scanError) {
@@ -140,9 +141,10 @@ export function ParcelReceptionForm() {
   const confirmReception = async () => {
     if (!parcelInfo || !parcelInfo.id || !user) return;
 
-    // Vérifier que le colis est dans l'état correct pour la réception
-    if (parcelInfo.logisticStatus !== 'pending_reception') {
-      setError(`Impossible de recevoir ce colis. État actuel : ${getLogisticsStatusLabel(parcelInfo.logisticStatus || 'pending_reception')}`);
+    // ✅ MIGRATION: Vérifier la phase du shipment (DPD_COLLECTION ou COLLECTED_EUROPE)
+    const validPhases = [ShipmentPhase.DPD_COLLECTION, ShipmentPhase.COLLECTED_EUROPE];
+    if (!validPhases.includes(parcelInfo.currentPhase)) {
+      setError(`Impossible de recevoir ce colis. Phase actuelle : ${parcelInfo.currentPhase}`);
       return;
     }
 
@@ -150,46 +152,32 @@ export function ParcelReceptionForm() {
     setError('');
 
     try {
-      console.log('🔄 [Reception] Confirming reception for parcel:', parcelInfo.id);
-      console.log('🔄 [Reception] Current logistic status:', parcelInfo.logisticStatus);
-      
-      // Marquer comme reçu dans Firestore (change le statut vers 'received')
-      const success = await ParcelService.markAsReceived(
-        parcelInfo.id, 
+      console.log('🔄 [Reception] Confirming reception for shipment:', parcelInfo.id);
+      console.log('🔄 [Reception] Current phase:', parcelInfo.currentPhase);
+
+      // ✅ MIGRATION: Utiliser ShipmentService.markAsReceivedAtWarehouse
+      await ShipmentService.markAsReceivedAtWarehouse(
+        parcelInfo.id,
         user.email || 'Agent inconnu'
       );
-      
-      if (success) {
-        console.log('✅ [Reception] Parcel successfully marked as received');
-        
-        // Envoyer la notification de réception
-        try {
-          const notificationSent = await ParcelService.sendReceptionNotification(parcelInfo);
-          if (notificationSent) {
-            setSuccess(`📦 Colis ${parcelInfo.trackingID} reçu et client notifié par SMS`);
-          } else {
-            setSuccess(`📦 Colis ${parcelInfo.trackingID} reçu (notification SMS non envoyée)`);
-          }
-        } catch (notifError) {
-          console.warn('⚠️ [Reception] Failed to send notification:', notifError);
-          setSuccess(`📦 Colis ${parcelInfo.trackingID} reçu (erreur notification SMS)`);
-        }
-        
-        // Nettoyer le formulaire
-        setParcelInfo(null);
-        setTrackingID('');
-        
-        // Déclencher un rafraîchissement de la liste des réceptions récentes
-        window.dispatchEvent(new CustomEvent('receptionUpdated'));
-        
-        // Suggérer la prochaine étape
-        setTimeout(() => {
-          setSuccess(prev => prev + ' • Prochaine étape : Station de Pesée');
-        }, 2000);
-      } else {
-        setError('❌ Erreur lors de la mise à jour du statut');
-      }
-      
+
+      console.log('✅ [Reception] Shipment successfully marked as received');
+
+      // TODO: Implémenter notification service pour UnifiedShipment
+      setSuccess(`📦 Expédition ${parcelInfo.trackingNumber} reçue à l'entrepôt`);
+
+      // Nettoyer le formulaire
+      setParcelInfo(null);
+      setTrackingID('');
+
+      // Déclencher un rafraîchissement de la liste des réceptions récentes
+      window.dispatchEvent(new CustomEvent('receptionUpdated'));
+
+      // Suggérer la prochaine étape
+      setTimeout(() => {
+        setSuccess(prev => prev + ' • Prochaine étape : Station de Pesée');
+      }, 2000);
+
     } catch (receptionError) {
       console.error('❌ [Reception] Reception error:', receptionError);
       setError('Erreur lors de la confirmation de réception');
@@ -214,33 +202,60 @@ export function ParcelReceptionForm() {
     setQrScanMode(false);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+  // ✅ MIGRATION: Adapter pour ShipmentStatus objet
+  const getStatusBadge = (status: UnifiedShipment['status']) => {
+    const statusLabel = typeof status === 'string' ? status : status?.label || status?.current || 'N/A';
+    const statusCurrent = typeof status === 'string' ? status : status?.current;
+
+    switch (statusCurrent) {
       case 'draft':
-        return <Badge className="bg-gray-100 text-gray-800">Brouillon</Badge>;
+      case 'preparation':
+        return <Badge className="bg-gray-100 text-gray-800">{statusLabel}</Badge>;
       case 'pending':
-        return <Badge className="bg-yellow-100 text-yellow-800">Payé - En attente</Badge>;
-      case 'to_warehouse':
-        return <Badge className="bg-orange-100 text-orange-800">Vers entrepôt</Badge>;
-      case 'from_warehouse_to_congo':
-        return <Badge className="bg-green-100 text-green-800">Vers RDC</Badge>;
-      case 'arrived_in_congo':
-        return <Badge className="bg-purple-100 text-purple-800">Arrivé RDC</Badge>;
+      case 'payment_completed':
+        return <Badge className="bg-yellow-100 text-yellow-800">{statusLabel}</Badge>;
+      case 'dpd_shipment_created':
+      case 'in_transit':
+        return <Badge className="bg-orange-100 text-orange-800">{statusLabel}</Badge>;
+      case 'received_at_warehouse':
+      case 'warehouse_received':
+        return <Badge className="bg-green-100 text-green-800">{statusLabel}</Badge>;
       case 'delivered':
-        return <Badge className="bg-green-100 text-green-800">Livré</Badge>;
+        return <Badge className="bg-emerald-100 text-emerald-800">{statusLabel}</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge variant="secondary">{statusLabel}</Badge>;
     }
   };
 
-  const getLogisticStatusBadge = (logisticStatus?: string) => {
-    if (!logisticStatus) return null;
-    
-    // Utiliser les utilitaires unifiés pour les statuts logistiques
-    const label = getLogisticsStatusLabel(logisticStatus);
-    const colorClasses = getLogisticsStatusColor(logisticStatus);
-    
-    return <Badge className={colorClasses}>{label}</Badge>;
+  // ✅ MIGRATION: Badge basé sur currentPhase
+  const getPhaseBadge = (phase: ShipmentPhase) => {
+    const phaseLabels: Record<ShipmentPhase, string> = {
+      [ShipmentPhase.PREPARATION]: 'Préparation',
+      [ShipmentPhase.ORDER]: 'Commande',
+      [ShipmentPhase.DPD_COLLECTION]: 'Collecte DPD',
+      [ShipmentPhase.COLLECTED_EUROPE]: 'Collecté Europe',
+      [ShipmentPhase.WAREHOUSE]: 'Entrepôt Befret',
+      [ShipmentPhase.BEFRET_TRANSIT]: 'Transit Befret',
+      [ShipmentPhase.DELIVERED]: 'Livré',
+      [ShipmentPhase.HEAVY_PROCESSING]: 'Traitement lourd',
+      [ShipmentPhase.HEAVY_COLLECTION]: 'Collecte lourde',
+      [ShipmentPhase.HEAVY_DELIVERY]: 'Livraison lourde'
+    };
+
+    const phaseColors: Record<ShipmentPhase, string> = {
+      [ShipmentPhase.PREPARATION]: 'bg-gray-100 text-gray-800',
+      [ShipmentPhase.ORDER]: 'bg-blue-100 text-blue-800',
+      [ShipmentPhase.DPD_COLLECTION]: 'bg-blue-100 text-blue-800',
+      [ShipmentPhase.COLLECTED_EUROPE]: 'bg-indigo-100 text-indigo-800',
+      [ShipmentPhase.WAREHOUSE]: 'bg-green-100 text-green-800',
+      [ShipmentPhase.BEFRET_TRANSIT]: 'bg-purple-100 text-purple-800',
+      [ShipmentPhase.DELIVERED]: 'bg-emerald-100 text-emerald-800',
+      [ShipmentPhase.HEAVY_PROCESSING]: 'bg-orange-100 text-orange-800',
+      [ShipmentPhase.HEAVY_COLLECTION]: 'bg-orange-100 text-orange-800',
+      [ShipmentPhase.HEAVY_DELIVERY]: 'bg-red-100 text-red-800'
+    };
+
+    return <Badge className={phaseColors[phase]}>{phaseLabels[phase]}</Badge>;
   };
 
   return (
@@ -356,25 +371,25 @@ export function ParcelReceptionForm() {
               </h3>
               <div className="flex space-x-2">
                 {getStatusBadge(parcelInfo.status)}
-                {getLogisticStatusBadge(parcelInfo.logisticStatus)}
+                {getPhaseBadge(parcelInfo.currentPhase)}
               </div>
             </div>
 
-            {/* Informations principales */}
+            {/* Informations principales - ✅ MIGRATION */}
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="space-y-1">
                 <span className="font-medium text-gray-600 flex items-center">
                   <Package className="h-3 w-3 mr-1" />
                   Expéditeur:
                 </span>
-                <p className="font-semibold">{parcelInfo.sender_name}</p>
+                <p className="font-semibold">{parcelInfo.customerInfo.sender.name}</p>
               </div>
               <div className="space-y-1">
                 <span className="font-medium text-gray-600 flex items-center">
                   <MapPin className="h-3 w-3 mr-1" />
                   Destinataire:
                 </span>
-                <p className="font-semibold">{parcelInfo.receiver_name}</p>
+                <p className="font-semibold">{parcelInfo.customerInfo.receiver.name}</p>
               </div>
               <div className="space-y-1">
                 <span className="font-medium text-gray-600">Type:</span>
@@ -382,61 +397,61 @@ export function ParcelReceptionForm() {
               </div>
               <div className="space-y-1">
                 <span className="font-medium text-gray-600">Poids déclaré:</span>
-                <p className="font-semibold">{parcelInfo.totalWeight} kg</p>
+                <p className="font-semibold">{parcelInfo.parcelInfo.weight} kg</p>
               </div>
             </div>
 
-            {/* Informations additionnelles */}
+            {/* Informations additionnelles - ✅ MIGRATION */}
             <div className="grid grid-cols-2 gap-4 text-sm pt-4 border-t border-green-200">
               <div className="space-y-1">
                 <span className="font-medium text-gray-600 flex items-center">
                   <Euro className="h-3 w-3 mr-1" />
                   Coût:
                 </span>
-                <p className="font-semibold">{parcelInfo.cost.toFixed(2)} €</p>
+                <p className="font-semibold">{parcelInfo.pricing.total.toFixed(2)} €</p>
               </div>
               <div className="space-y-1">
                 <span className="font-medium text-gray-600 flex items-center">
                   <Clock className="h-3 w-3 mr-1" />
                   Date création:
                 </span>
-                <p>{parcelInfo.create_date}</p>
+                <p>{new Date(parcelInfo.timestamps.createdAt).toLocaleDateString('fr-FR')}</p>
               </div>
               <div className="space-y-1">
-                <span className="font-medium text-gray-600">Nb d'articles:</span>
-                <p>{parcelInfo.items?.length || 1}</p>
+                <span className="font-medium text-gray-600">Catégorie:</span>
+                <p className="capitalize">{parcelInfo.category}</p>
               </div>
               <div className="space-y-1">
                 <span className="font-medium text-gray-600">Livraison:</span>
-                <p className="capitalize">{parcelInfo.pickupMethod === 'warehouse' ? 'Point relais' : 'Domicile'}</p>
+                <p className="capitalize">{parcelInfo.serviceConfig.befretDeliveryMethod === 'warehouse' ? 'Point relais' : 'Domicile'}</p>
               </div>
             </div>
 
-            {/* Description */}
-            {parcelInfo.description && (
+            {/* Description - ✅ MIGRATION */}
+            {parcelInfo.parcelInfo.description && (
               <div className="pt-4 border-t border-green-200">
                 <span className="font-medium text-gray-600">Description:</span>
-                <p className="text-sm mt-1 italic">{parcelInfo.description}</p>
+                <p className="text-sm mt-1 italic">{parcelInfo.parcelInfo.description}</p>
               </div>
             )}
 
-            {/* Statuts logistique */}
-            {parcelInfo.receivedAt && (
+            {/* Statuts logistique - ✅ MIGRATION */}
+            {parcelInfo.befretIntegration?.warehouseArrival && (
               <div className="pt-4 border-t border-green-200">
                 <span className="font-medium text-gray-600 flex items-center">
                   <CheckCircle className="h-3 w-3 mr-1 text-green-600" />
                   Reçu le:
                 </span>
-                <p className="text-sm">{new Date(parcelInfo.receivedAt).toLocaleString('fr-FR')}</p>
+                <p className="text-sm">{new Date(parcelInfo.befretIntegration.warehouseArrival).toLocaleString('fr-FR')}</p>
               </div>
             )}
 
-            {/* Actions basées sur le statut logistique unifié */}
-            {parcelInfo.logisticStatus === 'pending_reception' && (
+            {/* Actions basées sur la phase - ✅ MIGRATION */}
+            {(parcelInfo.currentPhase === ShipmentPhase.DPD_COLLECTION || parcelInfo.currentPhase === ShipmentPhase.COLLECTED_EUROPE) && (
               <div className="mt-6 space-y-3">
                 {/* Bouton Station de Pesée (recommandé) */}
-                <a 
-                  href={`/logistic/colis/weighing-station?tracking=${parcelInfo.trackingID}`}
+                <a
+                  href={`/logistic/colis/weighing-station?tracking=${parcelInfo.trackingNumber}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block"
@@ -486,7 +501,7 @@ export function ParcelReceptionForm() {
               </div>
             )}
 
-            {parcelInfo.logisticStatus === 'received' && (
+            {parcelInfo.currentPhase === ShipmentPhase.WAREHOUSE && (
               <div className="bg-green-100 border border-green-300 rounded-lg p-4 mt-4">
                 <div className="flex items-center text-green-800">
                   <CheckCircle className="h-4 w-4 mr-2" />
@@ -495,7 +510,7 @@ export function ParcelReceptionForm() {
                 <div className="mt-2 text-sm text-green-700">
                   <p>Prochaine étape : Pesée et vérification → 
                     <a 
-                      href={`/logistic/colis/weighing-station?tracking=${parcelInfo.trackingID}`}
+                      href={`/logistic/colis/weighing-station?tracking=${parcelInfo.trackingNumber}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="ml-1 underline hover:text-green-900"
@@ -507,18 +522,19 @@ export function ParcelReceptionForm() {
               </div>
             )}
 
-            {/* Message pour les autres statuts */}
-            {parcelInfo.logisticStatus && 
-             !isStatusVisibleInInterface(parcelInfo.logisticStatus as any, 'reception') && (
+            {/* ✅ MIGRATION: Message pour les autres phases */}
+            {parcelInfo.currentPhase !== ShipmentPhase.DPD_COLLECTION &&
+             parcelInfo.currentPhase !== ShipmentPhase.COLLECTED_EUROPE &&
+             parcelInfo.currentPhase !== ShipmentPhase.WAREHOUSE && (
               <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 mt-4">
                 <div className="flex items-center text-gray-800">
                   <Package className="h-4 w-4 mr-2" />
                   <span className="font-medium">
-                    Colis en cours de traitement : {getLogisticsStatusLabel(parcelInfo.logisticStatus || 'pending_reception')}
+                    Expédition en cours : {parcelInfo.status.label || parcelInfo.status.current}
                   </span>
                 </div>
                 <div className="mt-2 text-sm text-gray-600">
-                  Ce colis n'est pas dans l'état requis pour la réception.
+                  Cette expédition n'est pas dans la phase requise pour la réception.
                 </div>
               </div>
             )}

@@ -25,9 +25,18 @@ interface OverviewData {
   error?: string;
 }
 
+interface PerformanceData {
+  deliveryRate: number;
+  averageDeliveryTime: number;
+  customerSatisfaction: number;
+  complaintsResolvedRate: number;
+  lastUpdated: string;
+}
+
 export function DashboardOverview() {
   const router = useRouter();
   const [data, setData] = useState<OverviewData | null>(null);
+  const [performance, setPerformance] = useState<PerformanceData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,21 +46,35 @@ export function DashboardOverview() {
         setLoading(false);
         return;
       }
-      
+
       try {
-        const response = await fetch('https://api-rcai6nfrla-uc.a.run.app/api/dashboard/overview', {
+        // Fetch overview data
+        const overviewResponse = await fetch('https://api-rcai6nfrla-ew.a.run.app/api/dashboard/overview', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           },
         });
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        if (!overviewResponse.ok) {
+          throw new Error(`HTTP error! status: ${overviewResponse.status}`);
         }
 
-        const overviewData = await response.json();
+        const overviewData = await overviewResponse.json();
         setData(overviewData);
+
+        // Fetch performance data
+        const performanceResponse = await fetch('https://api-rcai6nfrla-ew.a.run.app/api/dashboard/performance', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (performanceResponse.ok) {
+          const performanceData = await performanceResponse.json();
+          setPerformance(performanceData);
+        }
       } catch (error) {
         console.error('Error fetching overview data:', error);
         
@@ -225,42 +248,66 @@ export function DashboardOverview() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Taux de livraison</span>
-              <div className="flex items-center space-x-2">
-                <div className="w-20 bg-gray-200 rounded-full h-2">
-                  <div className="bg-green-500 h-2 rounded-full" style={{ width: '94%' }} />
+          {!performance ? (
+            <div className="space-y-4 animate-pulse">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex justify-between items-center">
+                  <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/4"></div>
                 </div>
-                <span className="text-sm font-medium">94%</span>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Taux de livraison</span>
+                <div className="flex items-center space-x-2">
+                  <div className="w-20 bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-green-500 h-2 rounded-full transition-all"
+                      style={{ width: `${performance.deliveryRate}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium">{performance.deliveryRate}%</span>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Délai moyen</span>
+                <span className="text-sm font-medium">
+                  {performance.averageDeliveryTime > 0
+                    ? `${performance.averageDeliveryTime} jours`
+                    : 'N/A'}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Satisfaction client</span>
+                <div className="flex items-center space-x-2">
+                  <div className="w-20 bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-green-500 h-2 rounded-full transition-all"
+                      style={{ width: `${performance.customerSatisfaction}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium">{performance.customerSatisfaction}%</span>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Plaintes résolues</span>
+                <div className="flex items-center space-x-2">
+                  <div className="w-20 bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-[#1f981f] h-2 rounded-full transition-all"
+                      style={{ width: `${performance.complaintsResolvedRate}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium">{performance.complaintsResolvedRate}%</span>
+                </div>
               </div>
             </div>
-            
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Délai moyen</span>
-              <span className="text-sm font-medium">3.2 jours</span>
-            </div>
-            
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Satisfaction client</span>
-              <div className="flex items-center space-x-2">
-                <div className="w-20 bg-gray-200 rounded-full h-2">
-                  <div className="bg-green-500 h-2 rounded-full" style={{ width: '89%' }} />
-                </div>
-                <span className="text-sm font-medium">89%</span>
-              </div>
-            </div>
-            
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Plaintes résolues</span>
-              <div className="flex items-center space-x-2">
-                <div className="w-20 bg-gray-200 rounded-full h-2">
-                  <div className="bg-purple-500 h-2 rounded-full" style={{ width: '76%' }} />
-                </div>
-                <span className="text-sm font-medium">76%</span>
-              </div>
-            </div>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>

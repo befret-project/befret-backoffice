@@ -43,3 +43,5 @@ firebase-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+service-account-key.json
+functions/befret-acceptance-firebase-key.json

@@ -32,7 +32,7 @@ export function QuickActions() {
     {
       title: 'Scanner un colis',
       description: 'Enregistrer l\'arrivée d\'un colis',
-      href: '/logistic/colis/reception',
+      href: '/logistic/reception-depart/recherche',
       icon: Scan,
       permission: 'logistic.read'
     },

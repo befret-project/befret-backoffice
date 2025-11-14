@@ -52,12 +52,10 @@ module.exports = {
           foreground: "hsl(var(--card-foreground))",
         },
         befret: {
-          green: {
-            dark: "hsl(var(--befret-green-dark))",
-            primary: "hsl(var(--befret-green-primary))",
-            light: "hsl(var(--befret-green-light))",
-            accent: "hsl(var(--befret-green-accent))",
-          }
+          primary: "hsl(var(--befret-primary))",
+          'primary-dark': "hsl(var(--befret-primary-dark))",
+          'primary-variant': "hsl(var(--befret-primary-variant))",
+          light: "hsl(var(--befret-light))",
         },
       },
       borderRadius: {

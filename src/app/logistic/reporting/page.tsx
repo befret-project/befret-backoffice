@@ -292,7 +292,7 @@ export default function ReportingPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Évolution Mensuelle</CardTitle>
-                  <CardDescription>Expéditions et revenus par mois</CardDescription>
+                  <CardDescription>Groupages et revenus par mois</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
@@ -303,7 +303,7 @@ export default function ReportingPage() {
                       <YAxis yAxisId="right" orientation="right" />
                       <Tooltip />
                       <Legend />
-                      <Bar yAxisId="left" dataKey="expeditions" fill="#1a7125" name="Expéditions" />
+                      <Bar yAxisId="left" dataKey="expeditions" fill="#1a7125" name="Groupages" />
                       <Line yAxisId="right" type="monotone" dataKey="revenus" stroke="#10b981" strokeWidth={3} name="Revenus (€)" />
                     </LineChart>
                   </ResponsiveContainer>
@@ -357,7 +357,7 @@ export default function ReportingPage() {
                         </h4>
                         <Badge variant="outline">
                           {transporteur.totalColis || transporteur.nbExpeditions || 0} 
-                          {transporteur.totalColis ? ' colis' : ' expéditions'}
+                          {transporteur.totalColis ? ' colis' : ' groupages'}
                         </Badge>
                       </div>
                       <div className="grid grid-cols-2 gap-4">

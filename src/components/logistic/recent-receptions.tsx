@@ -6,33 +6,53 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Clock, Package, ExternalLink, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
-import { getLogisticsStatusLabel, getLogisticsStatusColor, isStatusVisibleInInterface } from '@/utils/status-mappings';
+import { UnifiedShipment, ShipmentPhase } from '@/types/unified-shipment';
+import ShipmentService from '@/services/shipment.service';
 
-// Labels français pour les statuts principaux (conservés pour les statuts non-logistiques)
-const statusLabels: { [key: string]: string } = {
-  'draft': 'Brouillon non finalisé',
-  'pending': 'Payé - En attente réception',
-  'to_warehouse': 'Acheminé vers entrepôt Tubize',
-  'from_warehouse_to_congo': 'En route vers la RD Congo',
-  'arrived_in_congo': 'Arrivé en RD Congo',
-  'delivered': 'Livré au destinataire'
+// Labels français pour les phases
+const phaseLabels: { [key in ShipmentPhase]: string } = {
+  [ShipmentPhase.PREPARATION]: 'Préparation',
+  [ShipmentPhase.ORDER]: 'Commande',
+  [ShipmentPhase.DPD_COLLECTION]: 'Collecte DPD',
+  [ShipmentPhase.COLLECTED_EUROPE]: 'Collecté Europe',
+  [ShipmentPhase.WAREHOUSE]: 'Entrepôt Befret',
+  [ShipmentPhase.BEFRET_TRANSIT]: 'Transit Befret',
+  [ShipmentPhase.DELIVERED]: 'Livré',
+  [ShipmentPhase.HEAVY_PROCESSING]: 'Traitement lourd',
+  [ShipmentPhase.HEAVY_COLLECTION]: 'Collecte lourde',
+  [ShipmentPhase.HEAVY_DELIVERY]: 'Livraison lourde'
 };
-import { Parcel } from '@/types/parcel';
-import ParcelService from '@/services/firebase';
+
+// Couleurs pour les phases
+const getPhaseColor = (phase: ShipmentPhase): string => {
+  switch (phase) {
+    case ShipmentPhase.WAREHOUSE:
+      return 'bg-green-100 text-green-800';
+    case ShipmentPhase.DPD_COLLECTION:
+    case ShipmentPhase.COLLECTED_EUROPE:
+      return 'bg-blue-100 text-blue-800';
+    case ShipmentPhase.BEFRET_TRANSIT:
+      return 'bg-purple-100 text-purple-800';
+    case ShipmentPhase.DELIVERED:
+      return 'bg-emerald-100 text-emerald-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
 
 export function RecentReceptions() {
-  const [receptions, setReceptions] = useState<Parcel[]>([]);
+  const [receptions, setReceptions] = useState<UnifiedShipment[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchReceptions = async () => {
     try {
       setLoading(true);
-      
+
       // Récupérer les réceptions récentes depuis Firestore
-      const recentParcels = await ParcelService.getRecentReceptions(10);
-      console.log(`📦 [RecentReceptions] Loaded ${recentParcels.length} recent parcels`);
-      
-      setReceptions(recentParcels);
+      const recentShipments = await ShipmentService.getShipmentsForReception(10);
+      console.log(`📦 [RecentReceptions] Loaded ${recentShipments.length} recent shipments`);
+
+      setReceptions(recentShipments);
     } catch (error) {
       console.error('❌ [RecentReceptions] Error fetching receptions:', error);
       setReceptions([]);
@@ -43,14 +63,14 @@ export function RecentReceptions() {
 
   useEffect(() => {
     fetchReceptions();
-    
+
     // Écouter les événements de mise à jour de réception
     const handleReceptionUpdate = () => {
       fetchReceptions();
     };
-    
+
     window.addEventListener('receptionUpdated', handleReceptionUpdate);
-    
+
     return () => {
       window.removeEventListener('receptionUpdated', handleReceptionUpdate);
     };
@@ -87,9 +107,9 @@ export function RecentReceptions() {
             <Clock className="h-5 w-5" />
             <span>Réceptions Récentes</span>
           </CardTitle>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={refreshReceptions}
             disabled={loading}
           >
@@ -114,44 +134,44 @@ export function RecentReceptions() {
           </div>
         ) : (
           <div className="space-y-4">
-            {receptions.map((reception) => (
-              <div key={reception.id} className="flex items-start space-x-3 group">
+            {receptions.map((shipment) => (
+              <div key={shipment.id} className="flex items-start space-x-3 group">
                 <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
                   <Package className="h-4 w-4 text-green-600" />
                 </div>
-                
+
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-gray-900 font-mono">
-                      {reception.trackingID}
+                      {shipment.trackingNumber}
                     </p>
                     <div className="flex space-x-1">
-                      <Badge className={getLogisticsStatusColor(reception.logisticsStatus || reception.logisticStatus || 'received')}>
-                        {getLogisticsStatusLabel(reception.logisticsStatus || reception.logisticStatus || 'received')}
+                      <Badge className={getPhaseColor(shipment.currentPhase)}>
+                        {phaseLabels[shipment.currentPhase]}
                       </Badge>
                       <Badge variant="outline" className="text-xs">
-                        {statusLabels[reception.status] || reception.status}
+                        {typeof shipment.status === 'string' ? shipment.status : (shipment.status as any)?.label || (shipment.status as any)?.current || 'N/A'}
                       </Badge>
                     </div>
                   </div>
-                  
+
                   <div className="text-sm text-gray-600 mt-1">
-                    <p><span className="font-medium">De:</span> {reception.sender_name}</p>
-                    <p><span className="font-medium">Vers:</span> {reception.receiver_name}</p>
+                    <p><span className="font-medium">De:</span> {shipment.customerInfo.sender.name}</p>
+                    <p><span className="font-medium">Vers:</span> {shipment.customerInfo.receiver.name}</p>
                   </div>
-                  
+
                   <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
                     <span>
-                      {reception.city || 'RDC'} • {reception.totalWeight} kg • {reception.cost.toFixed(2)}€
+                      {shipment.customerInfo.receiver.address.city} • {shipment.parcelInfo.weight} kg • {shipment.pricing.total.toFixed(2)}€
                     </span>
-                    {reception.receivedAt && (
-                      <span>{formatTimestamp(reception.receivedAt)}</span>
+                    {shipment.befretIntegration?.warehouseArrival && (
+                      <span>{formatTimestamp(shipment.befretIntegration.warehouseArrival.toISOString())}</span>
                     )}
                   </div>
-                  
+
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-xs text-gray-400">
-                      Type: {reception.type} • {reception.pickupMethod === 'warehouse' ? 'Point relais' : 'Domicile'}
+                      Type: {shipment.type} • {shipment.category}
                     </span>
                     <Button
                       variant="ghost"
@@ -159,7 +179,7 @@ export function RecentReceptions() {
                       className="opacity-0 group-hover:opacity-100 transition-opacity h-6 px-2"
                       asChild
                     >
-                      <Link href={`/logistic/colis/detail?id=${reception.id}`}>
+                      <Link href={`/logistic/colis/detail?id=${shipment.id}`}>
                         <ExternalLink className="h-3 w-3" />
                       </Link>
                     </Button>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/auth-provider";
+import { NavigationProgressProvider } from "@/components/navigation-progress";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,9 +28,11 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className={inter.className}>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <NavigationProgressProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </NavigationProgressProvider>
         {/* Service Worker temporairement désactivé pour debug
         <script
           dangerouslySetInnerHTML={{

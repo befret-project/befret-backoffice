@@ -2,7 +2,13 @@ import { Request } from "firebase-functions/v2/https";
 import { Response } from "express";
 import * as admin from "firebase-admin";
 import * as QRCode from "qrcode";
+import { receptionHandler } from "./logistic-reception"; // ✅ NOUVEAU
 
+/**
+ * LOGISTIC API HANDLER - ROUTER PRINCIPAL
+ *
+ * Route vers les différents sous-modules logistiques
+ */
 export async function logisticHandler(
   request: Request,
   response: Response,
@@ -11,11 +17,15 @@ export async function logisticHandler(
   const path = request.path;
   const method = request.method;
 
-  if (method !== "GET" && method !== "POST") {
-    return response.status(405).json({ error: "Method not allowed", success: false });
-  }
+  console.log(`📦 [Logistic API] ${method} ${path}`);
 
   try {
+    // ✅ NOUVEAU: Routes Réception Départ
+    if (path.startsWith("/api/logistic/reception/")) {
+      return await receptionHandler(request, response, db);
+    }
+
+    // Routes existantes
     if (path === "/api/logistic/expeditions" || path === "/api/logistic/expeditions/") {
       return await getExpeditions(request, response, db);
     } else if (path === "/api/logistic/reporting" || path === "/api/logistic/reporting/") {
@@ -30,7 +40,7 @@ export async function logisticHandler(
       return response.status(404).json({ error: "Logistic endpoint not found", success: false });
     }
   } catch (error) {
-    console.error("Logistic API Error:", error);
+    console.error("❌ Logistic API Error:", error);
     return response.status(500).json({ error: "Failed to fetch logistic data", success: false });
   }
 }

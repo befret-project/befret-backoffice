@@ -25,8 +25,10 @@ import {
   ArrowRight,
   RefreshCw
 } from 'lucide-react';
-import { Parcel, SpecialCaseTypeEnum } from '@/types/parcel';
-import ParcelService from '@/services/firebase';
+import { UnifiedShipment, ShipmentPhase } from '@/types/unified-shipment';
+import { Parcel, SpecialCaseTypeEnum } from '@/types/parcel'; // Keep temporarily for ParcelActions compatibility
+import ShipmentService from '@/services/shipment.service';
+import ParcelService from '@/services/firebase'; // Keep temporarily for backward compatibility
 import { QRCodeService } from '@/services/qr-code';
 import { QRScanner } from './qr-scanner';
 import { WeighingForm } from './weighing-form';
@@ -41,21 +43,22 @@ interface EnhancedParcelReceptionProps {
 }
 
 export function EnhancedParcelReception({ initialTrackingID }: EnhancedParcelReceptionProps = {}) {
-  // États existants préservés
+  // États principaux - MIGRÉ vers UnifiedShipment
   const [trackingID, setTrackingID] = useState(initialTrackingID || '');
-  const [parcelInfo, setParcelInfo] = useState<Parcel | null>(null);
+  const [shipmentInfo, setShipmentInfo] = useState<UnifiedShipment | null>(null);
+  const [parcelInfo, setParcelInfo] = useState<Parcel | null>(null); // Keep temporarily for legacy components
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [scanMode, setScanMode] = useState(false);
   const [qrScanMode, setQrScanMode] = useState(false);
-  
+
   // Nouveaux états pour les fonctionnalités
   const [currentStep, setCurrentStep] = useState<ReceptionStep>('search');
   const [actualWeight, setActualWeight] = useState<number | undefined>();
   const [weightPhotos, setWeightPhotos] = useState<string[]>([]);
   const [weightNotes, setWeightNotes] = useState<string>('');
-  
+
   const { user } = useAuth();
 
   // Auto-recherche si trackingID initial fourni
@@ -65,7 +68,7 @@ export function EnhancedParcelReception({ initialTrackingID }: EnhancedParcelRec
     }
   }, [initialTrackingID]);
 
-  // Logique existante préservée
+  // Recherche shipment - MIGRÉ vers ShipmentService
   const searchParcel = async () => {
     if (!trackingID.trim()) {
       setError('Veuillez saisir un numéro de suivi');
@@ -74,23 +77,25 @@ export function EnhancedParcelReception({ initialTrackingID }: EnhancedParcelRec
 
     setLoading(true);
     setError('');
+    setShipmentInfo(null);
     setParcelInfo(null);
 
     try {
-      console.log('Searching for parcel:', trackingID);
-      
-      const result = await ParcelService.searchByTrackingId(trackingID);
-      
-      if (result.found && result.parcel) {
-        setParcelInfo(result.parcel);
+      console.log('🔍 [Reception] Searching for shipment:', trackingID);
+
+      // Utiliser le nouveau service UnifiedShipment
+      const result = await ShipmentService.searchByTrackingNumber(trackingID);
+
+      if (result.found && result.shipment) {
+        setShipmentInfo(result.shipment);
         setCurrentStep('found');
-        console.log('Parcel found:', result.parcel);
+        console.log('✅ [Reception] Shipment found:', result.shipment);
       } else {
-        setError(result.error || 'Colis non trouvé');
+        setError(result.error || 'Expédition non trouvée');
       }
     } catch (searchError) {
-      console.error('Search error:', searchError);
-      setError('Erreur lors de la recherche du colis');
+      console.error('❌ [Reception] Search error:', searchError);
+      setError('Erreur lors de la recherche de l\'expédition');
     } finally {
       setLoading(false);
     }
@@ -176,49 +181,31 @@ export function EnhancedParcelReception({ initialTrackingID }: EnhancedParcelRec
   };
 
   const handleValidate = async () => {
-    if (!parcelInfo || !actualWeight) return;
-    
+    if (!shipmentInfo || !actualWeight) return;
+
     setLoading(true);
     setError('');
 
     try {
-      // Mettre à jour avec les nouvelles données logistiques
-      const success = await ParcelService.updateLogisticFields(
-        parcelInfo.id!,
-        {
-          weightReal: actualWeight,
-          weightPhotos: weightPhotos.map((photo, index) => ({
-            url: photo,
-            timestamp: new Date().toISOString(),
-            type: 'balance' as const,
-            operator: user?.email || 'unknown'
-          })),
-          logisticsStatus: 'verified',
-          receptionTimestamp: new Date().toISOString()
-        },
-        user?.email || 'unknown'
+      // Marquer comme reçu à l'entrepôt - MIGRÉ vers ShipmentService
+      const success = await ShipmentService.markAsReceivedAtWarehouse(
+        shipmentInfo.id,
+        user?.email || 'Agent inconnu',
+        actualWeight,
+        weightNotes || 'Colis reçu et pesé à l\'entrepôt Befret'
       );
 
       if (success) {
-        // Marquer comme reçu dans l'ancien système
-        await ParcelService.markAsReceived(parcelInfo.id!, user?.email || 'Agent inconnu');
-        
-        // Envoyer notification
-        try {
-          await ParcelService.sendReceptionNotification(parcelInfo);
-          setSuccess(`Colis ${parcelInfo.trackingID} validé et client notifié`);
-        } catch (notifError) {
-          setSuccess(`Colis ${parcelInfo.trackingID} validé (notification non envoyée)`);
-        }
-        
+        console.log('✅ [Reception] Shipment marked as received at warehouse');
+        setSuccess(`Expédition ${shipmentInfo.trackingNumber} validée et marquée comme reçue à l'entrepôt`);
         setCurrentStep('completed');
         window.dispatchEvent(new CustomEvent('receptionUpdated'));
       } else {
         setError('Erreur lors de la validation');
       }
     } catch (error) {
-      console.error('Validation error:', error);
-      setError('Erreur lors de la validation du colis');
+      console.error('❌ [Reception] Validation error:', error);
+      setError('Erreur lors de la validation de l\'expédition');
     } finally {
       setLoading(false);
     }
@@ -464,53 +451,66 @@ export function EnhancedParcelReception({ initialTrackingID }: EnhancedParcelRec
         </Card>
       )}
 
-      {/* Colis trouvé */}
-      {currentStep === 'found' && parcelInfo && (
+      {/* Shipment trouvé - MIGRÉ */}
+      {currentStep === 'found' && shipmentInfo && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Package className="h-5 w-5 text-green-600" />
-                <span>Colis Trouvé</span>
+                <span>Expédition Trouvée</span>
               </div>
               <div className="flex space-x-2">
-                {getStatusBadge(parcelInfo.status)}
+                <Badge variant={shipmentInfo.currentPhase === ShipmentPhase.WAREHOUSE ? 'default' : 'secondary'}>
+                  {shipmentInfo.currentPhase}
+                </Badge>
+                <Badge variant="outline">
+                  {typeof shipmentInfo.status === 'string' ? shipmentInfo.status : (shipmentInfo.status as any)?.label || (shipmentInfo.status as any)?.current || 'N/A'}
+                </Badge>
               </div>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
-                <span className="font-medium text-gray-600">Tracking ID:</span>
-                <p className="font-mono font-bold">{parcelInfo.trackingID}</p>
+                <span className="font-medium text-gray-600">Tracking Number:</span>
+                <p className="font-mono font-bold">{shipmentInfo.trackingNumber}</p>
               </div>
               <div>
                 <span className="font-medium text-gray-600">Expéditeur:</span>
-                <p className="font-semibold">{parcelInfo.sender_name}</p>
+                <p className="font-semibold">{shipmentInfo.customerInfo.sender.name}</p>
               </div>
               <div>
                 <span className="font-medium text-gray-600">Destinataire:</span>
-                <p className="font-semibold">{parcelInfo.receiver_name}</p>
+                <p className="font-semibold">{shipmentInfo.customerInfo.receiver.name}</p>
               </div>
               <div>
                 <span className="font-medium text-gray-600">Poids déclaré:</span>
-                <p className="font-semibold">{parcelInfo.weightDeclared || parcelInfo.weight || parcelInfo.totalWeight} kg</p>
+                <p className="font-semibold">{shipmentInfo.parcelInfo.weight} kg</p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-600">Destination:</span>
+                <p className="font-semibold">{shipmentInfo.customerInfo.receiver.address.city}</p>
+              </div>
+              <div>
+                <span className="font-medium text-gray-600">Catégorie:</span>
+                <p className="font-semibold capitalize">{shipmentInfo.category}</p>
               </div>
             </div>
-            
+
             <div className="flex space-x-3">
-              <Button 
+              <Button
                 onClick={() => setCurrentStep('weighing')}
                 className="bg-green-600 hover:bg-green-700"
               >
                 <Scale className="mr-2 h-4 w-4" />
                 Procéder à la Pesée
               </Button>
-              <Button 
+              <Button
                 onClick={resetForm}
                 variant="outline"
               >
-                Nouveau Colis
+                Nouvelle Recherche
               </Button>
             </div>
           </CardContent>

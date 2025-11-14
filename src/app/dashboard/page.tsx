@@ -15,27 +15,27 @@ export default function DashboardPage() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        {/* Page title with gradient background */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-green-600 via-green-700 to-indigo-700 p-6 shadow-xl">
+        {/* Page title with uniform Befret color */}
+        <div className="relative overflow-hidden rounded-2xl bg-[#1f981f] p-6 shadow-xl">
           <div className="relative z-10 flex justify-between items-start">
             <div>
               <h1 className="text-4xl font-bold text-white mb-2">
                 Tableau de bord
               </h1>
-              <p className="text-green-100 text-lg">
+              <p className="text-white/90 text-lg">
                 Vue d&apos;ensemble de l&apos;activité logistique Befret Europe-Congo
               </p>
             </div>
             <div className="flex items-center space-x-3">
-              <Button 
-                variant="secondary" 
+              <Button
+                variant="secondary"
                 size="icon"
                 className="bg-white/20 hover:bg-white/30 border-0 text-white"
               >
                 <Bell className="h-5 w-5" />
               </Button>
-              <Button 
-                variant="secondary" 
+              <Button
+                variant="secondary"
                 onClick={() => {
                   signOut();
                   window.location.href = '/login';
@@ -49,7 +49,7 @@ export default function DashboardPage() {
           </div>
           {/* Decorative elements */}
           <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
-          <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-40 h-40 bg-green-500/20 rounded-full blur-2xl"></div>
+          <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
         </div>
 
         {/* Stats cards */}

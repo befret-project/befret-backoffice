@@ -1,18 +1,11 @@
 'use client';
 
 import { useState, useEffect, createContext, useContext } from 'react';
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  permissions: string[];
-  accessToken: string;
-}
+import * as firebaseAuth from '@/lib/firebase-auth';
+import type { BefretUser } from '@/lib/firebase-auth';
 
 interface AuthContextType {
-  user: User | null;
+  user: BefretUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -30,90 +23,50 @@ export const useAuth = () => {
 };
 
 export const useAuthProvider = () => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<BefretUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Check for existing session on mount
+  // Check for existing session on mount and listen to auth state changes
   useEffect(() => {
-    checkSession();
-  }, []);
-
-  const checkSession = async () => {
-    try {
-      // Vérifier d'abord localStorage pour une session existante
-      const storedUser = localStorage.getItem('auth_user');
-      if (storedUser) {
-        try {
-          const userData = JSON.parse(storedUser);
-          setUser(userData);
-          setLoading(false);
-          return;
-        } catch (parseError) {
-          console.error('Failed to parse stored user data:', parseError);
-          localStorage.removeItem('auth_user');
-        }
-      }
-      
-      // Pas de session locale, vérifier avec le serveur (qui retournera null pour l'instant)
-      const response = await fetch('/api/auth/session', {
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.user) {
-          setUser(data.user);
-          localStorage.setItem('auth_user', JSON.stringify(data.user));
-        }
-      }
-    } catch (error) {
-      console.error('Session check failed:', error);
-    } finally {
-      setLoading(false);
+    // Check for stored user on mount
+    const storedUser = firebaseAuth.getCurrentUser();
+    if (storedUser) {
+      setUser(storedUser);
     }
-  };
+    setLoading(false);
+
+    // Listen to Firebase auth state changes
+    const unsubscribe = firebaseAuth.onAuthStateChange((currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     setLoading(true);
-    
+
     try {
-      const response = await fetch('/api/auth/signin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Authentication failed');
-      }
-
-      // Stocker les données utilisateur dans localStorage
-      setUser(data.user);
-      localStorage.setItem('auth_user', JSON.stringify(data.user));
+      // Use Firebase Authentication directly
+      const befretUser = await firebaseAuth.signIn(email, password);
+      setUser(befretUser);
     } catch (error: any) {
       setLoading(false);
-      throw error;
+      // Translate Firebase errors to French
+      const errorMessage = translateFirebaseError(error.code);
+      throw new Error(errorMessage);
     }
     setLoading(false);
   };
 
   const signOut = async () => {
     try {
-      await fetch('/api/auth/signout', {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await firebaseAuth.signOut();
+      setUser(null);
     } catch (error) {
       console.error('Sign out error:', error);
-    } finally {
-      // Nettoyer localStorage et l'état
-      localStorage.removeItem('auth_user');
-      setUser(null);
+      throw error;
     }
   };
 
@@ -129,5 +82,20 @@ export const useAuthProvider = () => {
     hasPermission,
   };
 };
+
+// Helper function to translate Firebase error codes to French
+function translateFirebaseError(code: string): string {
+  const errorMessages: Record<string, string> = {
+    'auth/user-not-found': 'Aucun compte trouvé avec cette adresse email',
+    'auth/wrong-password': 'Mot de passe incorrect',
+    'auth/invalid-email': 'Adresse email invalide',
+    'auth/user-disabled': 'Ce compte a été désactivé',
+    'auth/too-many-requests': 'Trop de tentatives. Réessayez plus tard',
+    'auth/network-request-failed': 'Erreur réseau. Vérifiez votre connexion',
+    'auth/invalid-credential': 'Email ou mot de passe incorrect',
+  };
+
+  return errorMessages[code] || 'Erreur de connexion. Veuillez réessayer';
+}
 
 export { AuthContext };

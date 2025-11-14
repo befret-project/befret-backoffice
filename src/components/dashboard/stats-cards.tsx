@@ -46,7 +46,7 @@ export function StatsCards() {
       
       try {
         // Récupération des vraies données depuis Firebase Functions
-        const response = await fetch('https://api-rcai6nfrla-uc.a.run.app/api/dashboard/stats', {
+        const response = await fetch('https://api-rcai6nfrla-ew.a.run.app/api/dashboard/stats', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -65,16 +65,16 @@ export function StatsCards() {
         }
 
         // Récupération directe des comptages complets depuis Firestore
-        const parcelsRef = collection(db, 'parcel');
-        
+        const shipmentsRef = collection(db, 'shipments');
+
         // Compter TOUS les colis
-        const allParcelsSnapshot = await getDocs(parcelsRef);
-        const totalAllParcels = allParcelsSnapshot.size;
-        
-        // Compter uniquement les brouillons
-        const draftQuery = query(parcelsRef, where('status', '==', 'draft'));
-        const draftSnapshot = await getDocs(draftQuery);
-        const draftParcels = draftSnapshot.size;
+        const allShipmentsSnapshot = await getDocs(shipmentsRef);
+        const totalAllParcels = allShipmentsSnapshot.size;
+
+        // Compter uniquement les colis payés (payment_completed)
+        const paidQuery = query(shipmentsRef, where('status.current', '==', 'payment_completed'));
+        const paidSnapshot = await getDocs(paidQuery);
+        const draftParcels = paidSnapshot.size;
 
         console.log(`📊 Stats récupérées: ${data.totalParcels} actifs, ${draftParcels} brouillons, ${totalAllParcels} total`);
 

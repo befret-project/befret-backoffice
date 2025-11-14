@@ -2,9 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Import optimisations tablette */
-@import '../styles/tablet-optimized.css';
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -13,29 +10,29 @@
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
-    /* BeFret Green Primary - rgb(26, 113, 37) = hsl(127, 63%, 27%) */
-    --primary: 127 63% 27%;
-    --primary-foreground: 120 40% 98%;
-    /* Light green secondary - based on rgba(31, 152, 31, 0.15) */
+    /* BeFret Green Primary - #1f981f = rgb(31, 152, 31) = hsl(120, 66%, 36%) */
+    --primary: 120 66% 36%;
+    --primary-foreground: 0 0% 100%;
+    /* Light green secondary */
     --secondary: 120 40% 96%;
-    --secondary-foreground: 127 84% 4.9%;
+    --secondary-foreground: 120 66% 20%;
     --muted: 120 40% 96%;
     --muted-foreground: 125 16.3% 46.9%;
     --accent: 120 40% 96%;
-    --accent-foreground: 127 84% 4.9%;
+    --accent-foreground: 120 66% 36%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 120 40% 98%;
+    --destructive-foreground: 0 0% 100%;
     --border: 124 31.8% 91.4%;
     --input: 124 31.8% 91.4%;
     /* Ring color matching primary green */
-    --ring: 127 63% 27%;
+    --ring: 120 66% 36%;
     --radius: 0.5rem;
-    
-    /* BeFret Brand Colors */
-    --befret-green-dark: 127 63% 27%;     /* rgb(26, 113, 37) */
-    --befret-green-primary: 120 60% 40%;   /* rgb(41, 163, 41) */
-    --befret-green-light: 120 50% 85%;    /* Light green backgrounds */
-    --befret-green-accent: 120 100% 25%;  /* Dark accent */
+
+    /* BeFret Brand Colors - Couleurs officielles depuis befret_new */
+    --befret-primary: 120 66% 36%;         /* #1f981f - rgb(31, 152, 31) */
+    --befret-primary-dark: 120 71% 23%;    /* #155724 - rgb(21, 87, 36) */
+    --befret-primary-variant: 120 68% 41%; /* #22A922 - rgb(34, 169, 34) */
+    --befret-light: 120 100% 98%;          /* #f8fff9 - rgb(248, 255, 249) */
   }
 
   .dark {
@@ -68,5 +65,21 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  /* Animation shimmer pour la barre de chargement */
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(200%);
+    }
+  }
+
+  .animate-shimmer {
+    animation: shimmer 1.5s infinite;
   }
 }

@@ -2,6 +2,13 @@ import { Request } from "firebase-functions/v2/https";
 import { Response } from "express";
 import * as admin from "firebase-admin";
 
+/**
+ * Dashboard API Handler
+ *
+ * ✅ MIGRÉ VERS COLLECTION 'shipments' (unified_v2)
+ * Architecture professionnelle sans placeholder
+ */
+
 export async function dashboardHandler(
   request: Request,
   response: Response,
@@ -21,6 +28,8 @@ export async function dashboardHandler(
       return await getRecentActivity(response, db);
     } else if (path === "/api/dashboard/stats" || path === "/api/dashboard/stats/") {
       return await getDashboardStats(response, db);
+    } else if (path === "/api/dashboard/performance" || path === "/api/dashboard/performance/") {
+      return await getDashboardPerformance(response, db);
     } else {
       return response.status(404).json({ error: "Dashboard endpoint not found", success: false });
     }
@@ -30,80 +39,117 @@ export async function dashboardHandler(
   }
 }
 
+/**
+ * ✅ GET DASHBOARD OVERVIEW - MIGRÉ VERS 'shipments'
+ *
+ * Retourne les données mensuelles et la répartition par statut
+ * Utilise l'architecture unified_v2
+ */
 async function getDashboardOverview(response: Response, db: admin.firestore.Firestore) {
   try {
-    console.log('📈 [Dashboard Overview] Fetching overview data from Firestore...');
+    console.log('📈 [Dashboard Overview] Fetching from collection: shipments (unified_v2)');
 
-    // Récupérer tous les colis
-    const parcelsRef = db.collection('parcel');
-    const allParcelsSnapshot = await parcelsRef.get();
-    
-    console.log(`📈 [Dashboard Overview] Processing ${allParcelsSnapshot.size} parcels...`);
+    // Récupérer tous les shipments
+    const shipmentsRef = db.collection('shipments');
+    const shipmentsSnapshot = await shipmentsRef.get();
+
+    console.log(`📈 [Dashboard Overview] Processing ${shipmentsSnapshot.size} shipments...`);
 
     // Initialiser les données mensuelles
     const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
     const monthlyData = monthNames.map(name => ({ name, colis: 0, revenus: 0 }));
-    
-    // Compter les statuts
-    const statusCounts: { [key: string]: number } = {};
+
+    // Mapping statuts pour regroupement visuel
+    const statusGrouping: { [key: string]: string } = {
+      // Phase Order
+      'created': 'En création',
+      'payment_pending': 'Paiement en cours',
+      'payment_completed': 'Payé',
+      'payment_failed': 'Paiement échoué',
+
+      // Phase DPD Collection
+      'ready_for_deposit': 'Prêt dépôt',
+      'collection_scheduled': 'Collecte programmée',
+      'collected_by_dpd': 'Collecté DPD',
+      'deposited_at_pickup': 'Déposé point relais',
+      'dpd_transit_eu': 'Transit DPD Europe',
+      'received_at_warehouse': 'Reçu entrepôt',
+
+      // Phase BeFret Distribution
+      'befret_transit': 'Transit Congo',
+      'arrived_in_congo': 'Arrivé Congo',
+      'ready_for_pickup': 'Prêt retrait',
+      'out_for_delivery': 'En livraison',
+      'delivered': 'Livré',
+
+      // Problèmes
+      'delivery_attempted': 'Tentative échouée',
+      'returned_to_sender': 'Retourné',
+      'lost': 'Perdu',
+      'damaged': 'Endommagé'
+    };
+
     const statusColors: { [key: string]: string } = {
-      'draft': '#94a3b8',
-      'pending': '#f59e0b',
-      'to_warehouse': '#1a7125',        // BeFret green dark
-      'from_warehouse_to_congo': '#16a34a', // BeFret green primary
-      'arrived_in_congo': '#10b981',    // Existing green
-      'delivered': '#059669'            // Existing dark green
-    };
-    
-    const statusLabels: { [key: string]: string } = {
-      'draft': 'Brouillon',
-      'pending': 'En attente',
-      'to_warehouse': 'Vers entrepôt',
-      'from_warehouse_to_congo': 'Vers RDC',
-      'arrived_in_congo': 'Arrivé RDC',
-      'delivered': 'Livré'
+      'En création': '#94a3b8',
+      'Paiement en cours': '#f59e0b',
+      'Payé': '#10b981',
+      'Paiement échoué': '#ef4444',
+      'Prêt dépôt': '#3b82f6',
+      'Collecte programmée': '#3b82f6',
+      'Collecté DPD': '#3b82f6',
+      'Déposé point relais': '#3b82f6',
+      'Transit DPD Europe': '#3b82f6',
+      'Reçu entrepôt': '#1a7125',
+      'Transit Congo': '#16a34a',
+      'Arrivé Congo': '#10b981',
+      'Prêt retrait': '#10b981',
+      'En livraison': '#059669',
+      'Livré': '#047857',
+      'Tentative échouée': '#f59e0b',
+      'Retourné': '#ef4444',
+      'Perdu': '#dc2626',
+      'Endommagé': '#dc2626'
     };
 
-    let totalParcels = 0;
+    const statusCounts: { [key: string]: number } = {};
+    let totalShipments = 0;
 
-    allParcelsSnapshot.forEach((doc) => {
+    shipmentsSnapshot.forEach((doc) => {
       const data = doc.data();
-      const createDate = data.create_date || '';
-      const cost = data.cost || 0;
-      const status = data.status || 'unknown';
+      const createdAt = data.createdAt || '';
+      const totalPrice = data.pricing?.totalPrice || 0;
+      const currentStatus = data.status?.current || 'unknown';
 
-      // Ignorer les brouillons pour les statistiques principales
-      if (status !== 'draft') {
-        totalParcels++;
+      totalShipments++;
 
-        // Extraire le mois de création
-        if (createDate) {
-          const date = new Date(createDate);
-          if (!isNaN(date.getTime())) {
-            const month = date.getMonth();
-            if (month >= 0 && month < 12) {
-              monthlyData[month].colis++;
-              monthlyData[month].revenus += cost;
-            }
+      // Extraire le mois de création
+      if (createdAt) {
+        const date = new Date(createdAt);
+        if (!isNaN(date.getTime())) {
+          const month = date.getMonth();
+          if (month >= 0 && month < 12) {
+            monthlyData[month].colis++;
+            monthlyData[month].revenus += totalPrice;
           }
         }
       }
 
-      // Compter tous les statuts (y compris draft)
-      statusCounts[status] = (statusCounts[status] || 0) + 1;
+      // Grouper les statuts pour simplifier la visualisation
+      const statusLabel = statusGrouping[currentStatus] || currentStatus;
+      statusCounts[statusLabel] = (statusCounts[statusLabel] || 0) + 1;
     });
 
     // Transformer les données de statut pour l'affichage
     const statusData = Object.entries(statusCounts)
       .filter(([_, count]) => count > 0)
       .map(([status, count]) => ({
-        name: statusLabels[status] || status,
+        name: status,
         value: count,
         color: statusColors[status] || '#6b7280'
       }))
-      .sort((a, b) => b.value - a.value); // Trier par ordre décroissant
+      .sort((a, b) => b.value - a.value);
 
-    // Arrondir les revenus
+    // Arrondir les revenus à 2 décimales
     monthlyData.forEach(month => {
       month.revenus = Math.round(month.revenus * 100) / 100;
     });
@@ -111,12 +157,12 @@ async function getDashboardOverview(response: Response, db: admin.firestore.Fire
     const overviewData = {
       monthlyData,
       statusData,
-      totalParcels,
+      totalParcels: totalShipments,
       lastUpdated: new Date().toISOString()
     };
 
-    console.log('📈 [Dashboard Overview] Overview data calculated:', {
-      totalParcels,
+    console.log('✅ [Dashboard Overview] Data calculated successfully:', {
+      totalShipments,
       statusCount: statusData.length,
       monthsWithData: monthlyData.filter(m => m.colis > 0).length
     });
@@ -124,7 +170,7 @@ async function getDashboardOverview(response: Response, db: admin.firestore.Fire
     return response.json(overviewData);
 
   } catch (error) {
-    console.error("Error in getDashboardOverview:", error);
+    console.error("❌ Error in getDashboardOverview:", error);
     throw error;
   }
 }
@@ -230,17 +276,17 @@ async function getRecentActivity(response: Response, db: admin.firestore.Firesto
 
 async function getDashboardStats(response: Response, db: admin.firestore.Firestore) {
   try {
-    console.log('📊 [Dashboard Stats] Fetching stats from Firestore...');
+    console.log('📊 [Dashboard Stats] Fetching stats from collection: shipments (unified_v2)');
 
-    // Récupérer tous les colis
-    const parcelsRef = db.collection('parcel');
-    const allParcelsSnapshot = await parcelsRef.get();
-    
+    // Récupérer tous les shipments
+    const shipmentsRef = db.collection('shipments');
+    const allShipmentsSnapshot = await shipmentsRef.get();
+
     const now = new Date();
     const today = now.toISOString().split('T')[0]; // Format YYYY-MM-DD
     const currentMonth = now.toISOString().substring(0, 7); // Format YYYY-MM
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().substring(0, 7);
-    
+
     let totalParcels = 0;
     let parcelsTrend = 0;
     let revenue = 0;
@@ -252,71 +298,76 @@ async function getDashboardStats(response: Response, db: admin.firestore.Firesto
     let lastMonthRevenue = 0;
     let uniqueUsers = new Set();
 
-    console.log(`📊 [Dashboard Stats] Processing ${allParcelsSnapshot.size} parcels...`);
+    console.log(`📊 [Dashboard Stats] Processing ${allShipmentsSnapshot.size} shipments...`);
 
-    allParcelsSnapshot.forEach((doc) => {
+    allShipmentsSnapshot.forEach((doc) => {
       const data = doc.data();
-      const createDate = data.create_date || '';
-      const cost = data.cost || 0;
-      
-      // Compter tous les colis (non draft)
-      if (data.status !== 'draft') {
+
+      // Nouvelle structure unified_v2
+      const currentStatus = data.status?.current || '';
+      const createDate = data.timestamps?.createdAt || '';
+      const cost = data.pricing?.totalCost || data.pricing?.estimatedCost || 0;
+      const userId = data.customerInfo?.sender?.userId || '';
+
+      // Compter tous les colis payés (payment_completed ou au-delà)
+      if (currentStatus && currentStatus !== 'created' && currentStatus !== 'payment_pending') {
         totalParcels++;
         revenue += cost;
-        
+
         // Ajouter l'utilisateur unique
-        if (data.uid) {
-          uniqueUsers.add(data.uid);
+        if (userId) {
+          uniqueUsers.add(userId);
         }
       }
-      
+
       // Statistiques mensuelles
-      if (createDate.startsWith(currentMonth)) {
+      if (createDate && createDate.startsWith(currentMonth)) {
         currentMonthParcels++;
         currentMonthRevenue += cost;
-      } else if (createDate.startsWith(lastMonth)) {
+      } else if (createDate && createDate.startsWith(lastMonth)) {
         lastMonthParcels++;
         lastMonthRevenue += cost;
       }
-      
+
       // Livraisons d'aujourd'hui
-      if (data.status === 'delivered' && createDate.startsWith(today)) {
+      if (currentStatus === 'delivered' && createDate && createDate.startsWith(today)) {
         deliveredToday++;
       }
     });
 
     // Calculer les tendances
-    parcelsTrend = lastMonthParcels > 0 
+    parcelsTrend = lastMonthParcels > 0
       ? Math.round(((currentMonthParcels - lastMonthParcels) / lastMonthParcels) * 100)
       : currentMonthParcels > 0 ? 100 : 0;
 
-    revenueTrend = lastMonthRevenue > 0 
+    revenueTrend = lastMonthRevenue > 0
       ? Math.round(((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100)
       : currentMonthRevenue > 0 ? 100 : 0;
 
-    // Récupérer les utilisateurs actifs (ayant créé un colis dans les 7 derniers jours)
+    // Récupérer les utilisateurs actifs (ayant créé un shipment dans les 7 derniers jours)
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     let activeUsers = 0;
     let activeUsersThisWeek = new Set();
     let activeUsersLastWeek = new Set();
 
-    allParcelsSnapshot.forEach((doc) => {
+    allShipmentsSnapshot.forEach((doc) => {
       const data = doc.data();
-      const createDate = data.create_date || '';
-      
-      if (data.uid && createDate >= sevenDaysAgo) {
-        activeUsersThisWeek.add(data.uid);
+      const createDate = data.timestamps?.createdAt || '';
+      const userId = data.customerInfo?.sender?.userId || '';
+
+      if (userId && createDate >= sevenDaysAgo) {
+        activeUsersThisWeek.add(userId);
       }
-      
+
       // Semaine précédente pour la tendance
       const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      if (data.uid && createDate >= fourteenDaysAgo && createDate < sevenDaysAgo) {
-        activeUsersLastWeek.add(data.uid);
+      if (userId && createDate >= fourteenDaysAgo && createDate < sevenDaysAgo) {
+        activeUsersLastWeek.add(userId);
       }
     });
 
     activeUsers = activeUsersThisWeek.size;
-    const usersTrend = activeUsersLastWeek.size > 0 
+    const usersTrend = activeUsersLastWeek.size > 0
       ? Math.round(((activeUsers - activeUsersLastWeek.size) / activeUsersLastWeek.size) * 100)
       : activeUsers > 0 ? 100 : 0;
 
@@ -337,6 +388,108 @@ async function getDashboardStats(response: Response, db: admin.firestore.Firesto
 
   } catch (error) {
     console.error("Error in getDashboardStats:", error);
+    throw error;
+  }
+}
+
+/**
+ * ✅ GET DASHBOARD PERFORMANCE - Métriques de performance calculées depuis Firestore
+ *
+ * Calcule les métriques réelles:
+ * - Taux de livraison (7 derniers jours)
+ * - Délai moyen de livraison
+ * - Satisfaction client (basé sur les feedbacks)
+ * - Plaintes résolues
+ */
+async function getDashboardPerformance(response: Response, db: admin.firestore.Firestore) {
+  try {
+    console.log('📊 [Dashboard Performance] Calculating performance metrics from Firestore...');
+
+    const shipmentsRef = db.collection('shipments');
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Récupérer tous les shipments
+    const allShipmentsSnapshot = await shipmentsRef.get();
+
+    let deliveredCount = 0;
+    let totalParcelsLast7Days = 0;
+    let deliveryTimes: number[] = [];
+    let feedbackCount = 0;
+    let positiveFeedbackCount = 0;
+    let complaintsTotal = 0;
+    let complaintsResolved = 0;
+
+    allShipmentsSnapshot.forEach((doc) => {
+      const data = doc.data();
+      const currentStatus = data.status?.current || '';
+      const createdAt = data.timestamps?.createdAt ? new Date(data.timestamps.createdAt) : null;
+      const deliveredAt = data.timestamps?.deliveredAt ? new Date(data.timestamps.deliveredAt) : null;
+
+      // Colis des 7 derniers jours
+      if (createdAt && createdAt >= sevenDaysAgo) {
+        totalParcelsLast7Days++;
+
+        // Colis livrés
+        if (currentStatus === 'delivered') {
+          deliveredCount++;
+
+          // Calculer délai de livraison
+          if (deliveredAt && createdAt) {
+            const deliveryTimeInDays = (deliveredAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
+            deliveryTimes.push(deliveryTimeInDays);
+          }
+        }
+      }
+
+      // Satisfaction client (feedback)
+      if (data.feedback) {
+        feedbackCount++;
+        if (data.feedback.rating && data.feedback.rating >= 4) {
+          positiveFeedbackCount++;
+        }
+      }
+
+      // Plaintes
+      if (data.complaint) {
+        complaintsTotal++;
+        if (data.complaint.status === 'resolved') {
+          complaintsResolved++;
+        }
+      }
+    });
+
+    // Calculer les métriques
+    const deliveryRate = totalParcelsLast7Days > 0
+      ? Math.round((deliveredCount / totalParcelsLast7Days) * 100)
+      : 0;
+
+    const averageDeliveryTime = deliveryTimes.length > 0
+      ? Math.round((deliveryTimes.reduce((a, b) => a + b, 0) / deliveryTimes.length) * 10) / 10
+      : 0;
+
+    const customerSatisfaction = feedbackCount > 0
+      ? Math.round((positiveFeedbackCount / feedbackCount) * 100)
+      : 0;
+
+    const complaintsResolvedRate = complaintsTotal > 0
+      ? Math.round((complaintsResolved / complaintsTotal) * 100)
+      : 0;
+
+    const performance = {
+      deliveryRate,
+      averageDeliveryTime,
+      customerSatisfaction,
+      complaintsResolvedRate,
+      lastUpdated: new Date().toISOString()
+    };
+
+    console.log('📊 [Dashboard Performance] Metrics calculated:', performance);
+
+    return response.json(performance);
+
+  } catch (error) {
+    console.error("Error in getDashboardPerformance:", error);
     throw error;
   }
 }

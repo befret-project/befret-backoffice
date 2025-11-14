@@ -25,7 +25,7 @@ export default function LoginPage() {
 
     try {
       await signIn(formData.email, formData.password);
-      router.push('/dashboard');
+      router.push('/modules');
     } catch (error: any) {
       setError(error.message || 'Email ou mot de passe incorrect');
     }

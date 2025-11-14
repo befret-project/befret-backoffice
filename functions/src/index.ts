@@ -3,15 +3,26 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import cors from "cors";
 
-// Initialize Firebase Admin
-admin.initializeApp();
+// Initialize Firebase Admin with service account
+try {
+  const serviceAccount = require("../serviceAccountKey.json");
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+  logger.info("Firebase Admin initialized with service account");
+} catch (error) {
+  logger.error("Error loading service account:", error);
+  // Fallback to default initialization
+  admin.initializeApp();
+  logger.info("Firebase Admin initialized with default credentials");
+}
 const db = admin.firestore();
 
 // Configure CORS
 const corsHandler = cors({ origin: true });
 
 // Import API handlers
-import { dashboardHandler } from "./api/dashboard";
+import { dashboardHandler } from "./api/dashboard-v2"; // ✅ MIGRÉ VERS unified_v2
 import { financeHandler } from "./api/finance";
 import { commercialHandler } from "./api/commercial";
 import { logisticHandler } from "./api/logistic";
@@ -21,8 +32,9 @@ import { paymentHandler } from "./api/payment";
 import { authHandler } from "./auth";
 
 // Main API function that routes to different handlers
-export const api = onRequest({ 
+export const api = onRequest({
   cors: true,
+  region: 'europe-west1',
   secrets: ["WEB_API_KEY"]
 }, async (request, response) => {
   try {

@@ -59,9 +59,9 @@ npm run export:dev
 - **APIs Firebase Functions** déployées et fonctionnelles
 
 ### 🔗 URLs des APIs Dashboard :
-- Stats: `https://api-rcai6nfrla-uc.a.run.app/api/dashboard/stats`
-- Overview: `https://api-rcai6nfrla-uc.a.run.app/api/dashboard/overview`
-- Recent Activity: `https://api-rcai6nfrla-uc.a.run.app/api/dashboard/recent-activity`
+- Stats: `https://api-rcai6nfrla-ew.a.run.app/api/dashboard/stats`
+- Overview: `https://api-rcai6nfrla-ew.a.run.app/api/dashboard/overview`
+- Recent Activity: `https://api-rcai6nfrla-ew.a.run.app/api/dashboard/recent-activity`
 
 ## 📋 PROCHAINES ÉTAPES - SPRINTS RESTANTS
 

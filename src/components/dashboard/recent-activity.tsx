@@ -68,7 +68,7 @@ export function RecentActivity() {
       
       try {
         // Récupération des vraies données depuis Firebase Functions
-        const response = await fetch('https://api-rcai6nfrla-uc.a.run.app/api/dashboard/recent-activity', {
+        const response = await fetch('https://api-rcai6nfrla-ew.a.run.app/api/dashboard/recent-activity', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
