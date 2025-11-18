@@ -250,6 +250,13 @@ const navigation: NavItem[] = [
         permission: 'settings:manage_system'
       }
     ]
+  },
+
+  // Mon Compte - Available to all users
+  {
+    title: 'Mon Compte',
+    href: '/settings',
+    icon: UserCheck,
   }
 ];
 
