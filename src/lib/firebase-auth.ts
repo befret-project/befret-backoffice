@@ -43,7 +43,7 @@ export const signIn = async (email: string, password: string): Promise<BefretUse
     const firebaseUser = userCredential.user;
 
     // Check if user has 2FA enabled
-    const userDoc = await getDoc(doc(db, 'backoffice_users', firebaseUser.uid));
+    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
     const userData = userDoc.data();
 
     if (userData?.twoFactorEnabled) {

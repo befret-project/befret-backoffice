@@ -31,7 +31,7 @@ export async function setupTwoFactor(
     }
 
     // Verify user exists
-    const userDoc = await db.collection('backoffice_users').doc(userId).get();
+    const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
       return response.status(404).json({
         success: false,
@@ -53,7 +53,7 @@ export async function setupTwoFactor(
     const qrCodeUrl = secret.otpauth_url || '';
 
     // Store temporary secret in Firestore (will be confirmed later)
-    await db.collection('backoffice_users').doc(userId).update({
+    await db.collection('users').doc(userId).update({
       twoFactorSecretTemp: secret.base32,
       twoFactorSetupStartedAt: admin.firestore.FieldValue.serverTimestamp()
     });
@@ -97,7 +97,7 @@ export async function verifyTwoFactor(
     }
 
     // Get user's 2FA secret
-    const userDoc = await db.collection('backoffice_users').doc(userId).get();
+    const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
       return response.status(404).json({
         success: false,
@@ -127,7 +127,7 @@ export async function verifyTwoFactor(
         const updatedBackupCodes = [...userData.backupCodes];
         updatedBackupCodes.splice(backupCodeIndex, 1);
 
-        await db.collection('backoffice_users').doc(userId).update({
+        await db.collection('users').doc(userId).update({
           backupCodes: updatedBackupCodes,
           twoFactorLastUsedAt: admin.firestore.FieldValue.serverTimestamp()
         });
@@ -150,7 +150,7 @@ export async function verifyTwoFactor(
 
     if (verified) {
       // Update last used timestamp
-      await db.collection('backoffice_users').doc(userId).update({
+      await db.collection('users').doc(userId).update({
         twoFactorLastUsedAt: admin.firestore.FieldValue.serverTimestamp()
       });
     }
@@ -212,7 +212,7 @@ export async function enableTwoFactor(
     const hashedBackupCodes = backupCodes.map(code => hashBackupCode(code));
 
     // Enable 2FA and store the secret
-    await db.collection('backoffice_users').doc(userId).update({
+    await db.collection('users').doc(userId).update({
       twoFactorEnabled: true,
       twoFactorSecret: secret,
       twoFactorEnrolledAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -258,7 +258,7 @@ export async function disableTwoFactor(
     }
 
     // Get user data
-    const userDoc = await db.collection('backoffice_users').doc(userId).get();
+    const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
       return response.status(404).json({
         success: false,
@@ -290,7 +290,7 @@ export async function disableTwoFactor(
     }
 
     // Disable 2FA
-    await db.collection('backoffice_users').doc(userId).update({
+    await db.collection('users').doc(userId).update({
       twoFactorEnabled: false,
       twoFactorSecret: admin.firestore.FieldValue.delete(),
       twoFactorEnrolledAt: admin.firestore.FieldValue.delete(),
@@ -332,7 +332,7 @@ export async function getTwoFactorStatus(
       });
     }
 
-    const userDoc = await db.collection('backoffice_users').doc(userId).get();
+    const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
       return response.status(404).json({
         success: false,
