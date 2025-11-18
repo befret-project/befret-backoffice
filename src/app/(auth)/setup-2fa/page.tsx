@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { Shield, Package2, Copy, Check, Download, Smartphone } from 'lucide-reac
 import { setupTwoFactor, enableTwoFactor } from '@/lib/auth-2fa';
 import QRCode from 'qrcode';
 
-export default function Setup2FAPage() {
+function Setup2FAContent() {
   const [step, setStep] = useState<'loading' | 'qrcode' | 'verify' | 'backup' | 'complete'>('loading');
   const [secret, setSecret] = useState('');
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
@@ -317,5 +317,17 @@ export default function Setup2FAPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Setup2FAPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-slate-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600" />
+      </div>
+    }>
+      <Setup2FAContent />
+    </Suspense>
   );
 }

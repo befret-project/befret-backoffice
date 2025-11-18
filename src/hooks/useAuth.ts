@@ -7,7 +7,7 @@ import type { BefretUser } from '@/lib/firebase-auth';
 interface AuthContextType {
   user: BefretUser | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<BefretUser | { requiresTwoFactor: true; userId: string; email: string }>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   hasPermission: (permission: string) => boolean;

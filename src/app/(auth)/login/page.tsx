@@ -27,8 +27,8 @@ export default function LoginPage() {
     try {
       const result = await signIn(formData.email, formData.password);
 
-      // Check if 2FA is required
-      if ('requiresTwoFactor' in result && result.requiresTwoFactor) {
+      // Check if result is defined and if 2FA is required
+      if (result && typeof result === 'object' && 'requiresTwoFactor' in result && result.requiresTwoFactor) {
         // Store temporary user data for 2FA verification
         storeTempTwoFactorData(result.userId, result.email);
         // Redirect to 2FA verification page
