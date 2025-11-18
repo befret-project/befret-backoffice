@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Eye, EyeOff, LogIn, Package2, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { storeTempTwoFactorData } from '@/lib/auth-2fa';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -24,7 +25,18 @@ export default function LoginPage() {
     setError('');
 
     try {
-      await signIn(formData.email, formData.password);
+      const result = await signIn(formData.email, formData.password);
+
+      // Check if 2FA is required
+      if ('requiresTwoFactor' in result && result.requiresTwoFactor) {
+        // Store temporary user data for 2FA verification
+        storeTempTwoFactorData(result.userId, result.email);
+        // Redirect to 2FA verification page
+        router.push('/verify-2fa');
+        return;
+      }
+
+      // Normal login (no 2FA)
       router.push('/modules');
     } catch (error: any) {
       setError(error.message || 'Email ou mot de passe incorrect');

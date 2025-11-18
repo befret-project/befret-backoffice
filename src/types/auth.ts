@@ -121,3 +121,83 @@ export interface LoginCredentials {
   email: string;
   password: string;
 }
+
+// ============================================
+// Two-Factor Authentication (2FA) Types
+// ============================================
+
+export interface TwoFactorSecret {
+  secret: string;
+  qrCodeUrl: string;
+  manualEntryKey: string;
+}
+
+export interface TwoFactorSetupResponse {
+  success: boolean;
+  secret?: TwoFactorSecret;
+  backupCodes?: string[];
+  message?: string;
+}
+
+export interface TwoFactorVerifyRequest {
+  userId: string;
+  token: string;
+}
+
+export interface TwoFactorVerifyResponse {
+  success: boolean;
+  valid: boolean;
+  message?: string;
+}
+
+export interface TwoFactorEnableRequest {
+  userId: string;
+  token: string;
+  secret: string;
+}
+
+export interface TwoFactorEnableResponse {
+  success: boolean;
+  enabled: boolean;
+  backupCodes: string[];
+  message?: string;
+}
+
+export interface TwoFactorDisableRequest {
+  userId: string;
+  password: string;
+}
+
+export interface TwoFactorDisableResponse {
+  success: boolean;
+  message?: string;
+}
+
+export interface TwoFactorStatus {
+  enabled: boolean;
+  enrolledAt?: string;
+  lastUsedAt?: string;
+  backupCodesRemaining?: number;
+}
+
+export interface UserTwoFactorData {
+  twoFactorEnabled: boolean;
+  twoFactorSecret?: string;
+  twoFactorEnrolledAt?: string;
+  twoFactorLastUsedAt?: string;
+  backupCodes?: string[];
+}
+
+export interface LoginWithTwoFactorRequest {
+  email: string;
+  password: string;
+  token?: string;
+}
+
+export interface LoginWithTwoFactorResponse {
+  success: boolean;
+  requiresTwoFactor: boolean;
+  userId?: string;
+  tempToken?: string;
+  message?: string;
+}

@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { getAuth } from 'firebase-admin/auth';
 import * as logger from "firebase-functions/logger";
+import * as admin from 'firebase-admin';
+import * as auth2fa from './api/auth-2fa';
 
 // Interface pour les credentials
 interface AuthCredentials {
@@ -40,32 +42,55 @@ export const authHandler = async (req: Request, res: Response) => {
   logger.info(`Auth handler: ${method} ${path}`);
 
   try {
+    const db = admin.firestore();
+
+    // Handle 2FA endpoints
+    if (path.includes('/api/auth/2fa/setup') && method === 'GET') {
+      return await auth2fa.setupTwoFactor(req as any, res as any, db);
+    }
+
+    if (path.includes('/api/auth/2fa/verify') && method === 'POST') {
+      return await auth2fa.verifyTwoFactor(req as any, res as any, db);
+    }
+
+    if (path.includes('/api/auth/2fa/enable') && method === 'POST') {
+      return await auth2fa.enableTwoFactor(req as any, res as any, db);
+    }
+
+    if (path.includes('/api/auth/2fa/disable') && method === 'POST') {
+      return await auth2fa.disableTwoFactor(req as any, res as any, db);
+    }
+
+    if (path.includes('/api/auth/2fa/status') && method === 'GET') {
+      return await auth2fa.getTwoFactorStatus(req as any, res as any, db);
+    }
+
     // Handle different auth endpoints
     // Note: path includes /api prefix: /api/auth/session, /api/auth/signin, etc.
     if ((path === '/api/auth/signin' || path === '/auth/signin') && method === 'POST') {
       return await handleSignIn(req, res);
     }
-    
+
     if ((path === '/api/auth/session' || path === '/auth/session') && method === 'GET') {
       return await handleSession(req, res);
     }
-    
+
     if ((path === '/api/auth/signout' || path === '/auth/signout') && method === 'POST') {
       return await handleSignOut(req, res);
     }
-    
+
     if ((path === '/api/auth/error' || path === '/auth/error') && method === 'GET') {
       return await handleError(req, res);
     }
-    
+
     if ((path === '/api/auth/providers' || path === '/auth/providers') && method === 'GET') {
       return await handleProviders(req, res);
     }
-    
+
     if ((path === '/api/auth/callback/credentials' || path === '/auth/callback/credentials') && method === 'POST') {
       return await handleCallback(req, res);
     }
-    
+
     if ((path === '/api/auth/csrf' || path === '/auth/csrf') && method === 'GET') {
       return await handleCSRF(req, res);
     }

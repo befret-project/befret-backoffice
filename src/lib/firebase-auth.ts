@@ -7,7 +7,8 @@ import {
   onAuthStateChanged,
   User
 } from 'firebase/auth';
-import { auth } from './firebase-client';
+import { auth, db } from './firebase-client';
+import { doc, getDoc } from 'firebase/firestore';
 import { BackofficeRole, ROLE_PERMISSIONS } from '@/types/auth';
 
 export interface BefretUser {
@@ -36,10 +37,24 @@ const getUserRole = async (firebaseUser: User): Promise<BackofficeRole> => {
   }
 };
 
-export const signIn = async (email: string, password: string): Promise<BefretUser> => {
+export const signIn = async (email: string, password: string): Promise<BefretUser | { requiresTwoFactor: true; userId: string; email: string }> => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const firebaseUser = userCredential.user;
+
+    // Check if user has 2FA enabled
+    const userDoc = await getDoc(doc(db, 'backoffice_users', firebaseUser.uid));
+    const userData = userDoc.data();
+
+    if (userData?.twoFactorEnabled) {
+      // Return special object indicating 2FA is required
+      return {
+        requiresTwoFactor: true,
+        userId: firebaseUser.uid,
+        email: firebaseUser.email || email
+      };
+    }
+
     const idToken = await firebaseUser.getIdToken();
 
     // Déterminer le rôle via Firebase custom claims
@@ -57,7 +72,7 @@ export const signIn = async (email: string, password: string): Promise<BefretUse
 
     // Stocker dans localStorage pour persistence
     localStorage.setItem('befret_user', JSON.stringify(befretUser));
-    
+
     return befretUser;
   } catch (error: any) {
     console.error('Authentication error:', error);

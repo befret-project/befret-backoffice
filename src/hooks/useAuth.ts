@@ -50,15 +50,24 @@ export const useAuthProvider = () => {
 
     try {
       // Use Firebase Authentication directly
-      const befretUser = await firebaseAuth.signIn(email, password);
-      setUser(befretUser);
+      const result = await firebaseAuth.signIn(email, password);
+
+      // Check if 2FA is required
+      if ('requiresTwoFactor' in result) {
+        setLoading(false);
+        return result; // Return 2FA requirement info
+      }
+
+      // Normal login
+      setUser(result);
+      setLoading(false);
+      return result;
     } catch (error: any) {
       setLoading(false);
       // Translate Firebase errors to French
       const errorMessage = translateFirebaseError(error.code);
       throw new Error(errorMessage);
     }
-    setLoading(false);
   };
 
   const signInWithGoogle = async () => {
